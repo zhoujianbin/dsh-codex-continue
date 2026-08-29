@@ -9,9 +9,12 @@
  * same loopback-fenced prefix route the tool uses).
  *
  * v0.2: "继续此会话" injects the instruction into the current conversation's
- * composer draft (via ctx.get('conversation'), the same lazy service
- * better-sidebar's @-reference button uses), and "RESUME.md" writes the
+ * composer draft (via ctx.get('conversation')), and "RESUME.md" writes the
  * handoff document into the project directory.
+ * v0.2.1: theme-aware colors (DSH --dsw-alias-* tokens with dark fallbacks)
+ * so the panel stays legible in light themes; projects show the full
+ * directory path + session count, sessions show title + model + message
+ * count so the two can never be confused.
  */
 import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent, ReactElement, ReactNode } from 'react'
@@ -104,32 +107,56 @@ async function api<T>(method: string, body?: Record<string, unknown>): Promise<T
   return (await res.json()) as T
 }
 
-// ── Styles (dsw palette) ──────────────────────────────────────────────────
+// ── Theme-aware styles (DSH --dsw-alias-* tokens, dark fallbacks) ─────────
+// Using the theme variables keeps the panel legible in light AND dark themes.
+
+const C = {
+  text: 'var(--dsw-alias-label-primary, #e8eaed)',
+  text2: 'var(--dsw-alias-label-secondary, #9aa3ad)',
+  text3: 'var(--dsw-alias-label-tertiary, #7a8494)',
+  dim: 'var(--dsw-alias-label-dimmed, #6b7480)',
+  bg: 'var(--dsw-alias-bg-base, #141619)',
+  bg1: 'var(--dsw-alias-bg-layer-1, #1b1e23)',
+  bg2: 'var(--dsw-alias-bg-layer-2, #22262c)',
+  border: 'var(--dsw-alias-border-l1, #262a31)',
+  border2: 'var(--dsw-alias-border-l2, #31363f)',
+  brand: 'var(--dsw-alias-brand-primary, #5b8cff)',
+  brandInvert: 'var(--dsw-alias-brand-primary-invert, #0f1420)',
+  hover: 'var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,0.10))',
+  error: 'var(--dsw-alias-state-error-primary, #e5534b)',
+  warn: 'var(--dsw-alias-state-warn-label, #e2b93b)',
+  mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',
+}
 
 const S = {
-  root: { display: 'flex', flexDirection: 'column' as const, height: '100%', fontSize: 12, color: '#e8eaed', fontFamily: '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif' },
-  hdr: { padding: '8px 10px', borderBottom: '1px solid #262a31', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
-  hdrTitle: { fontWeight: 600, fontSize: 12.5 },
-  back: { cursor: 'pointer', color: '#9aa3ad', fontSize: 15, border: 'none', background: 'none', padding: '0 2px' },
-  iconBtn: { cursor: 'pointer', background: 'none', border: '1px solid #31363f', borderRadius: 6, color: '#9aa3ad', fontSize: 12, padding: '2px 7px', marginLeft: 'auto' },
-  search: { margin: '8px 10px 4px', padding: '6px 9px', background: '#1b1e23', border: '1px solid #31363f', borderRadius: 8, color: '#e8eaed', fontSize: 12, outline: 'none' },
+  root: { display: 'flex', flexDirection: 'column' as const, height: '100%', fontSize: 12.5, color: C.text, fontFamily: '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif' },
+  hdr: { padding: '8px 10px', borderBottom: '1px solid ' + C.border, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
+  hdrTitle: { fontWeight: 600, fontSize: 13 },
+  hint: { padding: '6px 10px 0', fontSize: 10.5, color: C.dim, flexShrink: 0 },
+  back: { cursor: 'pointer', color: C.text2, fontSize: 15, border: 'none', background: 'none', padding: '0 2px' },
+  iconBtn: { cursor: 'pointer', background: 'none', border: '1px solid ' + C.border2, borderRadius: 6, color: C.text2, fontSize: 12, padding: '2px 7px', marginLeft: 'auto' },
+  search: { margin: '8px 10px 4px', padding: '6px 9px', background: C.bg1, border: '1px solid ' + C.border2, borderRadius: 8, color: C.text, fontSize: 12.5, outline: 'none', flexShrink: 0 },
   list: { flex: 1, overflowY: 'auto' as const, padding: 6 },
   item: { padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: '1px solid transparent' },
-  name: { fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  meta: { fontSize: 11, color: '#6b7480', marginTop: 3, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
-  badge: { fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#ffffff14', color: '#9aa3ad', border: '1px solid #31363f' },
-  badgeModel: { color: '#8ab0ff', borderColor: '#5b8cff44', background: '#5b8cff14' },
-  badgeArchived: { color: '#e2b93b', borderColor: '#e2b93b44', background: '#e2b93b14' },
-  pmeta: { fontSize: 11, color: '#9aa3ad', fontFamily: 'ui-monospace,Menlo,monospace', border: '1px solid #262a31', background: '#1b1e23', borderRadius: 8, padding: '8px 10px', margin: '8px 10px 0', whiteSpace: 'pre-wrap' as const, wordBreak: 'break-all' as const, maxHeight: 130, overflowY: 'auto' as const, flexShrink: 0 },
+  row1: { display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 },
+  name: { fontSize: 13, fontWeight: 600, color: C.text, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 },
+  meta: { fontSize: 11, color: C.text2, marginTop: 3, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
+  path: { fontFamily: C.mono, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  badge: { fontSize: 10, padding: '1px 6px', borderRadius: 4, background: C.bg2, color: C.text2, border: '1px solid ' + C.border2, flexShrink: 0 },
+  badgeModel: { color: C.brand, borderColor: 'color-mix(in srgb, var(--dsw-alias-brand-primary, #5b8cff) 45%, transparent)', background: 'color-mix(in srgb, var(--dsw-alias-brand-primary, #5b8cff) 14%, transparent)' },
+  badgeArchived: { color: C.warn, borderColor: 'color-mix(in srgb, var(--dsw-alias-state-warn-label, #e2b93b) 45%, transparent)', background: 'color-mix(in srgb, var(--dsw-alias-state-warn-label, #e2b93b) 14%, transparent)' },
+  count: { color: C.text2, fontSize: 11, marginLeft: 'auto', flexShrink: 0 },
+  pmeta: { fontSize: 11, color: C.text2, fontFamily: C.mono, border: '1px solid ' + C.border, background: C.bg1, borderRadius: 8, padding: '8px 10px', margin: '8px 10px 0', whiteSpace: 'pre-wrap' as const, wordBreak: 'break-all' as const, maxHeight: 130, overflowY: 'auto' as const, flexShrink: 0 },
   pbody: { flex: 1, overflowY: 'auto' as const, padding: '8px 10px 10px', display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  pmsg: { borderRadius: 8, padding: '7px 10px', fontSize: 11.5, border: '1px solid #262a31', background: '#1b1e23', whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const },
-  lbl: { display: 'block', fontSize: 10, color: '#6b7480', marginBottom: 2 },
-  actions: { borderTop: '1px solid #262a31', padding: 10, display: 'flex', gap: 8, flexShrink: 0 },
-  btn: { flex: 1, textAlign: 'center' as const, padding: '8px 4px', borderRadius: 8, border: '1px solid #31363f', background: '#22262c', color: '#e8eaed', fontSize: 12, cursor: 'pointer' },
-  primary: { background: '#5b8cff', borderColor: '#5b8cff', color: '#0f1420', fontWeight: 600 },
-  toast: { margin: '0 10px 10px', padding: '8px 10px', borderRadius: 8, background: '#2a2f37', border: '1px solid #3c424d', fontSize: 11.5, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-all' as const, maxHeight: 90, overflowY: 'auto' as const, flexShrink: 0 },
-  note: { padding: '14px 12px', color: '#6b7480', fontSize: 11.5, lineHeight: 1.7, textAlign: 'center' as const },
-  err: { padding: '10px 12px', color: '#e5534b', fontSize: 11.5, lineHeight: 1.6 },
+  pmsg: { borderRadius: 8, padding: '7px 10px', fontSize: 11.5, border: '1px solid ' + C.border, background: C.bg1, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, color: C.text },
+  pmsgUser: { background: C.bg2, borderColor: C.border2 },
+  lbl: { display: 'block', fontSize: 10, color: C.dim, marginBottom: 2 },
+  actions: { borderTop: '1px solid ' + C.border, padding: 10, display: 'flex', gap: 8, flexShrink: 0 },
+  btn: { flex: 1, textAlign: 'center' as const, padding: '8px 4px', borderRadius: 8, border: '1px solid ' + C.border2, background: C.bg2, color: C.text, fontSize: 12, cursor: 'pointer' },
+  primary: { background: C.brand, borderColor: C.brand, color: C.brandInvert, fontWeight: 600 },
+  toast: { margin: '0 10px 10px', padding: '8px 10px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-3, #2a2f37)', border: '1px solid ' + C.border2, fontSize: 11.5, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-all' as const, maxHeight: 90, overflowY: 'auto' as const, flexShrink: 0, color: C.text },
+  note: { padding: '14px 12px', color: C.dim, fontSize: 11.5, lineHeight: 1.7, textAlign: 'center' as const },
+  err: { padding: '10px 12px', color: C.error, fontSize: 11.5, lineHeight: 1.6 },
 }
 
 function CodexTab(props: unknown): ReactElement {
@@ -230,9 +257,10 @@ function CodexTab(props: unknown): ReactElement {
       h('div', { style: S.hdr }, [
         h('span', null, '📂'),
         h('span', { style: S.hdrTitle }, 'Codex 项目'),
-        h('span', { style: S.badge }, String(projects.length)),
+        h('span', { style: S.badge }, String(projects.length) + ' 个目录'),
         h('button', { style: S.iconBtn, onClick: loadProjects, title: '重新扫描' }, '⟳'),
       ]),
+      h('div', { style: S.hint }, '📁 = 项目目录（Codex 会话的工作目录），点击进入查看会话'),
       h('input', { style: S.search, placeholder: '🔍 搜索项目 / 路径…', value: query, onChange: (e: { target: { value: string } }) => setQuery(e.target.value) }),
       err ? h('div', { style: S.err }, err) : null,
       loading && projects.length === 0 ? h('div', { style: S.note }, '扫描 ~/.codex …') : null,
@@ -242,14 +270,17 @@ function CodexTab(props: unknown): ReactElement {
           h('div', {
             key: p.cwd, style: S.item,
             onClick: () => openProject(p.cwd),
-            onMouseEnter: (e: MouseEvent<HTMLDivElement>) => { e.currentTarget.style.background = '#ffffff0a' },
+            onMouseEnter: (e: MouseEvent<HTMLDivElement>) => { e.currentTarget.style.background = C.hover },
             onMouseLeave: (e: MouseEvent<HTMLDivElement>) => { e.currentTarget.style.background = 'none' },
           },
-            h('div', { style: S.name }, '📁 ' + p.name),
+            h('div', { style: S.row1 }, [
+              h('span', { style: { fontSize: 14 } }, '📁'),
+              h('span', { style: S.name }, p.name),
+              h('span', { style: S.count }, p.sessionCount + ' 会话'),
+            ]),
             h('div', { style: S.meta }, [
-              h('span', null, p.sessionCount + ' 会话'),
-              h('span', null, (p.lastUpdatedAt ?? '').slice(0, 10)),
-              h('span', { style: { marginLeft: 'auto' } }, '›'),
+              h('span', { style: S.path }, p.cwd),
+              p.lastUpdatedAt ? h('span', { style: { marginLeft: 'auto', color: C.dim } }, '最近 ' + p.lastUpdatedAt.slice(0, 10)) : null,
             ]),
           ),
         ),
@@ -262,20 +293,24 @@ function CodexTab(props: unknown): ReactElement {
     return h('div', { style: S.root }, [
       h('div', { style: S.hdr }, [
         h('button', { style: S.back, onClick: back }, '‹'),
-        h('span', { style: { fontFamily: 'ui-monospace,Menlo,monospace', fontSize: 11, color: '#6b7480', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, project),
+        h('span', { style: { fontFamily: C.mono, fontSize: 11, color: C.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, project),
       ]),
+      h('div', { style: S.hint }, '💬 = 单个会话，点击查看详情 / 继续'),
       h('input', { style: S.search, placeholder: '🔍 搜索会话…', value: query, onChange: (e: { target: { value: string } }) => setQuery(e.target.value) }),
       err ? h('div', { style: S.err }, err) : null,
       sessions.length === 0 && !loading && !err ? h('div', { style: S.note }, '该项目下没有会话') : null,
       h('div', { style: S.list },
         shown.map((s) =>
           h('div', { key: s.sessionId, style: S.item, onClick: () => openSession(s.sessionId) },
-            h('div', { style: S.name }, '💬 ' + (s.title ?? '(无标题)')),
+            h('div', { style: S.row1 }, [
+              h('span', { style: { fontSize: 13 } }, '💬'),
+              h('span', { style: S.name }, s.title ?? '(无标题)'),
+              s.archived ? h('span', { style: { ...S.badge, ...S.badgeArchived } }, '归档') : null,
+              h('span', { style: S.badgeModel }, s.model ?? 'openai'),
+            ]),
             h('div', { style: S.meta }, [
               h('span', null, (s.updatedAt ?? '').slice(0, 16)),
-              h('span', { style: S.badgeModel }, s.model ?? 'openai'),
               h('span', null, s.messageCount + ' msgs'),
-              s.archived ? h('span', { style: S.badgeArchived }, '归档') : null,
             ]),
           ),
         ),
@@ -287,7 +322,7 @@ function CodexTab(props: unknown): ReactElement {
   return h('div', { style: S.root }, [
     h('div', { style: S.hdr }, [
       h('button', { style: S.back, onClick: back }, '‹'),
-      h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, detail?.title ?? ''),
+      h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, detail?.title ?? ''),
     ]),
     detail ? [
       h('div', { style: S.pmeta },
@@ -296,7 +331,7 @@ function CodexTab(props: unknown): ReactElement {
         (detail.lastUserMessage ? '\nlastUser: ' + detail.lastUserMessage.slice(0, 200) : '')),
       h('div', { style: S.pbody },
         detail.preview.map((m, i) =>
-          h('div', { key: i, style: { ...S.pmsg, ...(m.kind === 'user' ? { background: '#22262c', borderColor: '#31363f' } : {}) } },
+          h('div', { key: i, style: { ...S.pmsg, ...(m.kind === 'user' ? S.pmsgUser : {}) } },
             [h('span', { style: S.lbl }, kindLabel(m.kind)), m.text.slice(0, 500)],
           ),
         ),
