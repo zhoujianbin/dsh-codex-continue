@@ -1,6 +1,6 @@
 import { CodexIndex } from './codex-index.ts'
 import { parseRollout } from './codex-parser.ts'
-import { buildResumeBundle, type ResumeOptions } from './resume-builder.ts'
+import { buildResumeBundle, writeResumeMarkdown, type ResumeOptions } from './resume-builder.ts'
 import type { CodexContinueConfig, CodexEvent, CodexProject, CodexSessionIndex, ResumeBundle } from './types.ts'
 
 /**
@@ -102,6 +102,19 @@ export class CodexContinueService {
     const read = this.readSession(sessionId)
     if (!read) return undefined
     return buildResumeBundle(read.entry, read.events, this.resumeOpts())
+  }
+
+  /** Generate + write the RESUME.md handoff document into the project dir. */
+  async writeResumeDoc(sessionId: string): Promise<{ ok: boolean; path?: string; error?: string }> {
+    const bundle = await this.resume(sessionId)
+    if (!bundle) return { ok: false, error: 'session not found' }
+    if (!bundle.cwdExists) return { ok: false, error: `project directory missing: ${bundle.cwd}` }
+    try {
+      const target = await writeResumeMarkdown(bundle.cwd, this.config.resumeDocName, bundle)
+      return { ok: true, path: target }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   }
 }
 

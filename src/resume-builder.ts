@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import fsp from 'node:fs/promises'
+import path from 'node:path'
 import {
   goalOf,
   isScaffold,
@@ -158,6 +159,74 @@ function runGit(cwd: string, args: string[]): Promise<{ stdout: string }> {
     })
     child.on('error', reject)
   })
+}
+
+/**
+ * Render the resume bundle as a handoff markdown document (RESUME.md).
+ * Pure — no IO — so it is unit-testable and can be shown before writing.
+ */
+export function renderResumeMarkdown(bundle: ResumeBundle): string {
+  const lines: string[] = []
+  lines.push(`# RESUME · 《${bundle.title}》`)
+  lines.push('')
+  lines.push(`- 来源: Codex 会话 \`${bundle.sessionId}\` (${bundle.model ?? 'openai'} · ${bundle.cliVersion ?? '?'})`)
+  lines.push(`- 项目目录: \`${bundle.cwd}\` ${bundle.cwdExists ? '' : '(⚠ 目录不存在！)'}`)
+  if (bundle.startedAt || bundle.updatedAt) {
+    lines.push(`- 会话时间: ${bundle.startedAt ?? '?'} → ${bundle.updatedAt ?? '?'}`)
+  }
+  lines.push(`- 续作包: ${bundle.stats.estimatedTokens} tokens / ${bundle.stats.compactEvents} 条正文${bundle.stats.truncated ? '（已按预算截断，聚焦最近进展）' : ''}`)
+  lines.push('')
+  if (bundle.goal) {
+    lines.push('## 目标')
+    lines.push('')
+    lines.push(bundle.goal)
+    lines.push('')
+  }
+  if (bundle.lastUserMessage) {
+    lines.push('## 最后用户消息')
+    lines.push('')
+    lines.push(bundle.lastUserMessage)
+    lines.push('')
+  }
+  if (bundle.lastAssistantMessage) {
+    lines.push('## 最后进展')
+    lines.push('')
+    lines.push(bundle.lastAssistantMessage)
+    lines.push('')
+  }
+  if (bundle.git) {
+    lines.push('## Git 状态')
+    lines.push('')
+    lines.push('```')
+    lines.push(bundle.git.summary)
+    lines.push('```')
+    lines.push('')
+  }
+  if (bundle.stateHints.lastCommands.length > 0) {
+    lines.push('## 现场提示（最后命令）')
+    lines.push('')
+    for (const c of bundle.stateHints.lastCommands) lines.push(`- \`${c}\``)
+    lines.push('')
+  }
+  if (bundle.transcript.length > 0) {
+    lines.push('## 正文（压缩）')
+    lines.push('')
+    for (const l of bundle.transcript) lines.push(l)
+    lines.push('')
+  }
+  lines.push('---')
+  lines.push('由 dsh-codex-continue 生成（https://github.com/zhoujianbin/dsh-codex-continue）')
+  return lines.join('\n') + '\n'
+}
+
+/**
+ * Write the resume markdown next to the project (best-effort; caller decides
+ * how to surface a failure). Returns the absolute path written.
+ */
+export async function writeResumeMarkdown(cwd: string, fileName: string, bundle: ResumeBundle): Promise<string> {
+  const target = path.join(cwd, fileName)
+  await fsp.writeFile(target, renderResumeMarkdown(bundle), 'utf8')
+  return target
 }
 
 /**

@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
   buildResumeBundle,
   compactTranscript,
   estimateTokens,
+  renderResumeMarkdown,
   stateHintsOf,
+  writeResumeMarkdown,
 } from '../src/resume-builder.ts'
 import type { CodexEvent, CodexSessionIndex } from '../src/types.ts'
 
@@ -49,6 +54,32 @@ describe('compactTranscript', () => {
     ]
     const { lines } = compactTranscript(withScaffold, { toolOutputTail: 400, argsPreview: 200, messageMax: 2000 }, 10_000)
     expect(lines.join('\n')).not.toContain('recommended_plugins')
+  })
+})
+
+describe('resume markdown', () => {
+  const entry: CodexSessionIndex = {
+    sessionId: 'sess-111', title: '设计会话同步工具', cwd: '/tmp/definitely-not-exists-dsh-codex-continue-test',
+    rolloutPath: '/nope.jsonl', archived: false, messageCount: 4,
+  }
+  const bundlePromise = buildResumeBundle(entry, events, {
+    maxBundleTokens: 60_000, toolOutputTail: 400, argsPreview: 200, messageMax: 2000, includeGitStatus: true,
+  })
+
+  it('renders a handoff document with goal and compact transcript', async () => {
+    const md = renderResumeMarkdown(await bundlePromise)
+    expect(md).toContain('# RESUME · 《设计会话同步工具》')
+    expect(md).toContain('## 目标')
+    expect(md).toContain('会话同步')
+    expect(md).toContain('## 正文（压缩）')
+    expect(md).toContain('user: 帮我做一个会话同步工具')
+  })
+
+  it('writes the document into the target directory', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-codex-continue-md-'))
+    const target = await writeResumeMarkdown(dir, 'RESUME.md', await bundlePromise)
+    expect(fs.existsSync(target)).toBe(true)
+    expect(fs.readFileSync(target, 'utf8')).toContain('# RESUME')
   })
 })
 

@@ -9,7 +9,9 @@
 - 📂 **项目/会话浏览**：按工作目录聚合项目，标题（来自 `session_index.jsonl`）、时间、模型、消息数一目了然；支持搜索
 - 🔎 **会话预览**：goal / 最后消息 / 分色正文（你 / Codex / 思考 / 工具调用）
 - ⚡ **续作包 resume bundle**：token 预算内压缩正文（工具输出截尾、reasoning 只留摘要、按 callId 配对），附 `cwd` 存在性与 `git status`
+- ✍️ **一键继续**：侧边栏点「⚡ 继续此会话」直接把续作指令注入输入框（不再需要复制粘贴）；「📄 RESUME.md」在项目目录生成交接文档（换 agent / 给人看 / 跨机迁移都可用）
 - 🧰 **两种用法**：直接在对话里指挥 agent 调 `codex` 工具（主路径），或侧边栏「Codex 续作」Tab 浏览后点继续（需 dsh-better-sidebar）
+- 🔍 **浏览体验**：项目/会话搜索、刷新、归档标记、goal/最后消息预览
 - 🔒 **安全**：只读 rollout JSONL + 索引；绝不读 `auth.json` / `config.toml` / sqlite
 
 ## 安装
@@ -44,6 +46,7 @@ Agent 会调 `codex(action: resume)` 拉回续作包，切到原项目目录核�
 | `list_sessions` | 会话列表（`query` / `project` 过滤） |
 | `show_session` | goal + 最后消息 + 预览片段 |
 | `resume` | 完整续作包（目标/正文/cwd/git/统计），即上下文注入点 |
+| `resume_doc` | 在项目目录生成 `RESUME.md` 交接文档 |
 
 ## 配置
 
@@ -58,6 +61,7 @@ Agent 会调 `codex(action: resume)` 拉回续作包，切到原项目目录核�
 | `messageMax` | 2000 | 单条消息在正文中的字符上限 |
 | `includeGitStatus` | true | 续作时跑 `git status` |
 | `maxAgeDays` | 0 | 只列出最近 N 天的会话（0=全部） |
+| `resumeDocName` | `RESUME.md` | 交接文档文件名（写入项目目录） |
 
 ## 数据来源（只读）
 

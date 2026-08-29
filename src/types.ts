@@ -87,6 +87,8 @@ export interface CodexContinueConfig {
   includeGitStatus: boolean
   /** Max age of a session to list (0 = all). */
   maxAgeDays: number
+  /** File name for the generated handoff document (in the project dir). */
+  resumeDocName: string
 }
 
 export const DEFAULT_CONFIG: CodexContinueConfig = {
@@ -98,4 +100,5 @@ export const DEFAULT_CONFIG: CodexContinueConfig = {
   cacheDir: '~/.dsh/plugin-data/codex-continue',
   includeGitStatus: true,
   maxAgeDays: 0,
+  resumeDocName: 'RESUME.md',
 }

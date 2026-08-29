@@ -102,6 +102,12 @@ export function registerCodexRoutes(ctx: { webServer: { register(r: unknown): un
       if (!bundle) return writeJson(res, 404, { ok: false, error: 'session not found' })
       writeJson(res, 200, { ok: true, bundle })
     },
+    'resume-doc': async (_req, res, body) => {
+      const id = typeof body['session_id'] === 'string' ? body['session_id'] : undefined
+      if (!id) return writeJson(res, 400, { ok: false, error: 'session_id required' })
+      const doc = await service.writeResumeDoc(id)
+      writeJson(res, doc.ok ? 200 : 400, doc)
+    },
     health: async (_req, res) => {
       writeJson(res, 200, { ok: true })
     },

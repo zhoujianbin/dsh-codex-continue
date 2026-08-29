@@ -31,12 +31,13 @@ export function createCodexTool(service: CodexContinueService) {
       'Read local OpenAI Codex projects and sessions (~/.codex, read-only) and continue a session in DSH. ' +
       'Actions: list_projects (projects grouped by working directory), list_sessions (filter by query/project), ' +
       'show_session (goal + last messages + preview), resume (full resume bundle: goal, last messages, ' +
-      'compact transcript, cwd, git status — switch your workdir to the returned cwd and continue the work).',
+      'compact transcript, cwd, git status — switch your workdir to the returned cwd and continue the work), ' +
+      'resume_doc (write a RESUME.md handoff document into the project directory).',
     parameters: {
       action: {
         type: 'string',
         required: true,
-        enum: ['list_projects', 'list_sessions', 'show_session', 'resume'],
+        enum: ['list_projects', 'list_sessions', 'show_session', 'resume', 'resume_doc'],
         description: 'Which operation to perform.',
       },
       query: {
@@ -60,6 +61,7 @@ export function createCodexTool(service: CodexContinueService) {
           ok: { type: 'boolean', required: true },
           action: { type: 'string', required: true },
           error: { type: 'string' },
+          path: { type: 'string' },
           projects: { type: 'json' },
           sessions: { type: 'json' },
           session: { type: 'json' },
@@ -123,6 +125,12 @@ export function createCodexTool(service: CodexContinueService) {
           if (!bundle) throw new Error(`codex: session not found: ${sessionId}`)
           return { ok: true, action, bundle }
         }
+        case 'resume_doc': {
+          const sessionId = args['session_id'] as string
+          if (!sessionId) throw new Error('codex: session_id is required for resume_doc')
+          const doc = await service.writeResumeDoc(sessionId)
+          return { ok: doc.ok, action, path: doc.path, error: doc.error ?? undefined }
+        }
         default:
           throw new Error(`codex: unknown action ${action}`)
       }
@@ -145,6 +153,7 @@ interface ToolResult {
     git?: { dirty: boolean; summary: string } | null
     stats: { totalEvents: number; compactEvents: number; estimatedTokens: number; truncated: boolean }
   }
+  path?: string
   error?: string
 }
 
@@ -177,6 +186,9 @@ function renderSummary(v: ToolResult): string {
     if (b.git) head.push(`git: ${b.git.summary.slice(0, 200)}`)
     if (b.stats.truncated) head.push(`⚠ 会话较长，正文已按预算截断，聚焦最近进展`)
     head.push(`请切到 cwd 目录核对现场后继续。完整正文在返回值的 bundle.transcript 里。`)
+  } else if (v.action === 'resume_doc') {
+    if (v.path) head.push(`已生成交接文档: ${v.path}`)
+    else head.push(`交接文档生成失败: ${v.error ?? 'unknown error'}`)
   }
   return head.join('\n')
 }
