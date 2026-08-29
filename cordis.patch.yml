@@ -1,0 +1,21 @@
+# dsh-codex-continue bundle patch
+#
+# Installed through:
+#
+#   dsh plugin --profile <name> add dsh-codex-continue
+#
+# The CLI reconciles dsh.profile.bundles against installed packages and
+# appends this bundle to the stack; this patch mounts the plugin row.
+# Edit the `config` block below to change behaviour (paths, budgets...).
+- insert:
+    - id: codex-continue
+      name: 'dsh-codex-continue'
+      config:
+        # codexHome: '~/.codex'        # where Codex stores sessions
+        # maxBundleTokens: 60000      # resume transcript token budget
+        # toolOutputTail: 400
+        # argsPreview: 200
+        # messageMax: 2000
+        # cacheDir: '~/.dsh/plugin-data/codex-continue'
+        # includeGitStatus: true
+        # maxAgeDays: 0

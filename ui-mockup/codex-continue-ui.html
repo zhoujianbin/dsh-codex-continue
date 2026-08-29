@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-codex-continue · 界面原型</title>
+<style>
+  :root {
+    --dsw-alias-bg-base:#141619; --dsw-alias-bg-layer-1:#1b1e23; --dsw-alias-bg-layer-2:#22262c;
+    --dsw-alias-bg-layer-3:#2a2f37; --dsw-alias-bg-overlay:#101114cc;
+    --dsw-alias-border-l1:#262a31; --dsw-alias-border-l2:#31363f; --dsw-alias-border-l3:#3c424d;
+    --dsw-alias-brand-primary:#5b8cff; --dsw-alias-brand-primary-invert:#0f1420;
+    --dsw-alias-text-primary:#e8eaed; --dsw-alias-text-secondary:#9aa3ad; --dsw-alias-text-tertiary:#6b7480;
+    --dsw-alias-bg-mask-1:#ffffff0a; --dsw-alias-bg-mask-2:#ffffff14;
+    --dsw-alias-success:#3ecf8e; --dsw-alias-warn:#e2b93b; --dsw-alias-danger:#e5534b;
+    --ds-font-family-code:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#0d0f12; color:var(--dsw-alias-text-primary); font:13px/1.5 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif; height:100vh; display:flex; overflow:hidden; }
+  ::-webkit-scrollbar { width:8px; height:8px; } ::-webkit-scrollbar-thumb { background:var(--dsw-alias-border-l2); border-radius:4px; }
+
+  /* ===== DSH shell ===== */
+  #left { width:230px; border-right:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-base); display:flex; flex-direction:column; }
+  #left .ws { padding:10px 12px; font-weight:600; font-size:12px; color:var(--dsw-alias-text-secondary); border-bottom:1px solid var(--dsw-alias-border-l1); }
+  .srow { padding:8px 12px; cursor:pointer; border-left:2px solid transparent; }
+  .srow.on { background:var(--dsw-alias-bg-mask-1); border-left-color:var(--dsw-alias-brand-primary); }
+  .srow .t { font-size:12.5px; } .srow .s { font-size:11px; color:var(--dsw-alias-text-tertiary); margin-top:2px; }
+
+  #main { flex:1; display:flex; flex-direction:column; background:var(--dsw-alias-bg-base); min-width:0; }
+  #topbar { height:40px; border-bottom:1px solid var(--dsw-alias-border-l1); display:flex; align-items:center; padding:0 14px; gap:10px; }
+  #topbar .dot { width:9px; height:9px; border-radius:50%; background:var(--dsw-alias-success); }
+  #topbar b { font-size:13px; font-weight:600; }
+  #topbar .model { margin-left:auto; font-size:11px; color:var(--dsw-alias-text-tertiary); font-family:var(--ds-font-family-code); }
+
+  #chat { flex:1; overflow:auto; padding:20px 26px; display:flex; flex-direction:column; gap:14px; }
+  .msg { max-width:760px; }
+  .msg .who { font-size:11px; color:var(--dsw-alias-text-tertiary); margin-bottom:4px; }
+  .msg .bubble { background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); border-radius:10px; padding:10px 14px; white-space:pre-wrap; }
+  .msg.user .bubble { background:var(--dsw-alias-bg-layer-2); }
+  .msg.user { align-self:flex-end; }
+  .msg.agent { align-self:flex-start; }
+  .toolchip { display:flex; align-items:center; gap:8px; font-family:var(--ds-font-family-code); font-size:11.5px; background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); border-radius:8px; padding:7px 10px; color:var(--dsw-alias-text-secondary); margin-top:6px; }
+  .toolchip .ok { color:var(--dsw-alias-success); }
+  .hl { background:var(--dsw-alias-brand-primary); color:var(--dsw-alias-brand-primary-invert); border-radius:3px; padding:0 3px; font-weight:600; }
+
+  /* composer */
+  #composer { border-top:1px solid var(--dsw-alias-border-l1); padding:12px 20px 14px; background:var(--dsw-alias-bg-base); }
+  #composer .box { border:1px solid var(--dsw-alias-border-l2); background:var(--dsw-alias-bg-layer-1); border-radius:12px; padding:10px 12px; min-height:44px; color:var(--dsw-alias-text-secondary); display:flex; align-items:center; gap:8px; }
+  #composer .box.injected { border-color:var(--dsw-alias-brand-primary); box-shadow:0 0 0 2px #5b8cff33; }
+  #composer .send { margin-left:auto; background:var(--dsw-alias-brand-primary); color:var(--dsw-alias-brand-primary-invert); border:none; border-radius:8px; padding:6px 14px; font-weight:600; cursor:pointer; }
+
+  /* ===== Right sidebar: plugin tab ===== */
+  #side { width:420px; border-left:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-base); display:flex; flex-direction:column; }
+  #tabs { display:flex; border-bottom:1px solid var(--dsw-alias-border-l1); }
+  #tabs .tab { flex:1; text-align:center; padding:9px 0; font-size:12px; color:var(--dsw-alias-text-tertiary); cursor:pointer; border-bottom:2px solid transparent; }
+  #tabs .tab.on { color:var(--dsw-alias-text-primary); border-bottom-color:var(--dsw-alias-brand-primary); }
+  #tabs .tab.hot { color:var(--dsw-alias-brand-primary); }
+
+  #panel { flex:1; display:flex; flex-direction:column; min-height:0; }
+  #waybar { display:flex; gap:6px; padding:8px 10px; border-bottom:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
+  #waybar .way { flex:1; font-size:11px; text-align:center; padding:6px 4px; border-radius:8px; border:1px solid var(--dsw-alias-border-l2); color:var(--dsw-alias-text-secondary); cursor:pointer; }
+  #waybar .way.on { border-color:var(--dsw-alias-brand-primary); color:var(--dsw-alias-text-primary); background:#5b8cff1a; }
+
+  .hdr { padding:10px 12px; border-bottom:1px solid var(--dsw-alias-border-l1); display:flex; align-items:center; gap:8px; }
+  .hdr .back { cursor:pointer; color:var(--dsw-alias-text-secondary); font-size:15px; padding:0 4px; }
+  .hdr .back:hover { color:var(--dsw-alias-text-primary); }
+  .hdr .path { font-family:var(--ds-font-family-code); font-size:11px; color:var(--dsw-alias-text-tertiary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  #search { margin:10px 12px 4px; padding:7px 10px; background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l2); border-radius:8px; color:var(--dsw-alias-text-secondary); font-size:12px; }
+
+  #list { flex:1; overflow:auto; padding:6px; }
+  .item { padding:9px 10px; border-radius:8px; cursor:pointer; border:1px solid transparent; }
+  .item:hover { background:var(--dsw-alias-bg-mask-1); }
+  .item.on { background:#5b8cff14; border-color:#5b8cff33; }
+  .item .row1 { display:flex; align-items:center; gap:8px; }
+  .item .name { font-size:12.5px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item .meta { font-size:11px; color:var(--dsw-alias-text-tertiary); margin-top:3px; display:flex; gap:8px; align-items:center; }
+  .badge { font-size:10px; padding:1px 6px; border-radius:4px; background:var(--dsw-alias-bg-mask-2); color:var(--dsw-alias-text-secondary); border:1px solid var(--dsw-alias-border-l2); }
+  .badge.model { color:var(--dsw-alias-brand-primary); border-color:#5b8cff44; background:#5b8cff14; }
+  .ic { width:16px; text-align:center; opacity:.75; }
+
+  /* preview */
+  #preview { flex:1; overflow:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .pmeta { font-size:11px; color:var(--dsw-alias-text-tertiary); font-family:var(--ds-font-family-code); line-height:1.7; border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); border-radius:8px; padding:8px 10px; }
+  .pmsg { border-radius:8px; padding:7px 10px; font-size:12px; border:1px solid var(--dsw-alias-border-l1); }
+  .pmsg.user { background:var(--dsw-alias-bg-layer-2); border-color:var(--dsw-alias-border-l2); }
+  .pmsg.agent { background:var(--dsw-alias-bg-layer-1); }
+  .pmsg.tool { background:#5b8cff0d; font-family:var(--ds-font-family-code); font-size:11px; color:var(--dsw-alias-text-secondary); }
+  .pmsg.tool .ok { color:var(--dsw-alias-success); }
+  .pmsg.reason { background:transparent; border-style:dashed; color:var(--dsw-alias-text-tertiary); font-size:11px; }
+  .pmsg .lbl { display:block; font-size:10px; color:var(--dsw-alias-text-tertiary); margin-bottom:2px; }
+
+  #actions { border-top:1px solid var(--dsw-alias-border-l1); padding:10px 12px; display:flex; gap:8px; }
+  .btn { flex:1; text-align:center; padding:8px 6px; border-radius:8px; border:1px solid var(--dsw-alias-border-l2); background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-text-primary); font-size:12px; cursor:pointer; }
+  .btn:hover { background:var(--dsw-alias-bg-layer-3); }
+  .btn.primary { background:var(--dsw-alias-brand-primary); border-color:var(--dsw-alias-brand-primary); color:var(--dsw-alias-brand-primary-invert); font-weight:600; }
+
+  #toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--dsw-alias-bg-layer-3); border:1px solid var(--dsw-alias-border-l3); padding:10px 16px; border-radius:10px; font-size:12.5px; opacity:0; pointer-events:none; transition:.25s; box-shadow:0 8px 24px #000a; z-index:9; }
+  #toast.show { opacity:1; }
+
+  .foot { font-size:11px; color:var(--dsw-alias-text-tertiary); text-align:center; padding:6px; border-top:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
+</style>
+</head>
+<body>
+
+<!-- DSH 左栏：会话列表 -->
+<div id="left">
+  <div class="ws">工作区 · 继续工作插件</div>
+  <div class="srow on"><div class="t">继续 Codex 会话</div><div class="s">当前 · dsh-codex-continue</div></div>
+  <div class="srow"><div class="t">修复 DSH 插件加载</div><div class="s">昨天</div></div>
+  <div class="srow"><div class="t">营销数字员工方案</div><div class="s">3 天前</div></div>
+  <div class="srow"><div class="t">上地学区房雷达</div><div class="s">5 天前</div></div>
+</div>
+
+<!-- DSH 中央：对话 -->
+<div id="main">
+  <div id="topbar"><span class="dot"></span><b>继续 Codex 会话</b><span class="model">deepseek-v4-flash · DSH 0.1.1-rc.2</span></div>
+  <div id="chat">
+    <div class="msg user"><div class="who">你</div><div class="bubble">继续我的 Codex 会话《设计会话同步工具》，先看看现场再接着做。</div></div>
+    <div class="msg agent"><div class="who">Agent</div><div class="bubble">好的，我先调 <span class="hl">codex</span> 工具把这个会话的续作包拉出来。</div>
+      <div class="toolchip">⏱ codex(action: resume, session_id: 019fa261-…) <span class="ok">✓ 返回续作包 · 22KB · 60k tokens 预算内</span></div>
+    </div>
+    <div class="msg agent"><div class="who">Agent · 续作包已载入</div><div class="bubble">已读取 Codex 会话《设计会话同步工具》：
+• 项目目录：/Users/jianbinzhou/Documents/Codex/2026-07-27/co-d
+• 目标：做一个会话同步工具，把当前 Codex 会话完整迁移到另一台电脑
+• 上次进展：已确认会话正文统一存放在 ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl，项目会话与非项目会话正文格式一致
+• 现场：最后一条命令 exit=0；项目目录存在
+
+我先切换到该项目目录核对现场（git 状态、最近改动），然后继续设计迁移方案。</div></div>
+  </div>
+  <div id="composer">
+    <div class="box" id="composerBox">给 Agent 发消息…</div>
+  </div>
+</div>
+
+<!-- DSH 右栏：本插件的 Tab -->
+<div id="side">
+  <div id="tabs">
+    <div class="tab">文件</div><div class="tab">终端</div><div class="tab">Git</div><div class="tab hot on">✦ Codex 续作</div>
+  </div>
+  <div id="waybar">
+    <div class="way on" data-way="ui">① UI 浏览 → 点继续</div>
+    <div class="way" data-way="chat">② 直接跟 Agent 说</div>
+  </div>
+  <div id="panel"></div>
+  <div class="foot">dsh-codex-continue · 只读 ~/.codex · 项目=会话工作目录</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const P = {
+  "/Users/jianbinzhou/Documents/Codex/2026-07-27/co-d": [
+    { id:"019fa261-…", title:"设计会话同步工具", time:"2026-07-27 15:02", model:"openai", msgs:12, cli:"0.146.0-alpha.3.1",
+      goal:"你现在每个会话，是用什么格式存的，我想做一个会话同步的工具，把当前的会话能完整的迁移到另一台电脑上",
+      lastUser:"「项目」里的会话，和非项目里的会话，有区别么",
+      lastAgent:"有区别，但区别主要在「归属和工作目录元数据」，会话正文格式完全一样。无论项目会话还是非项目会话，都存放在 ~/.codex/sessions/YYYY/MM/DD/rollout-…-<thread-id>.jsonl …",
+      tx:[
+        {k:"user", t:"你现在每个会话，是用什么格式存的，我想做一个会话同步的工具，把当前的会话能完整的迁移到另一台电脑上"},
+        {k:"reason", t:"先检查本机 Codex 会话存储结构，区分「可直接复制的数据」与「绑定账号/密钥的数据」"},
+        {k:"tool", t:"exec_command  sed -n '1,240p' ~/.agents/skills/session-logs-1.0.0/SKILL.md   ✓ exit=0"},
+        {k:"agent", t:"这个技能描述的是另一套旧式/第三方会话目录（~/.clawdbot），并不代表当前 Codex Desktop。下面以本机 ~/.codex 的真实文件和数据库 schema 为准，并避免读取或输出认证密钥。"},
+        {k:"tool", t:"exec_command  find ~/.codex -maxdepth 2 | head -40   ✓ exit=0"},
+        {k:"agent", t:"已确认：会话正文在 ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl（session_meta / turn_context / 用户消息 / 助手消息 / 工具调用等事件），标题索引在 session_index.jsonl。项目会话与非项目会话的正文格式完全一样，区别只在归属与工作目录元数据。"},
+      ]},
+    { id:"019fa245-…", title:"（无标题）会话同步调研", time:"2026-07-27 14:31", model:"openai", msgs:8, cli:"0.146.0-alpha.3.1" },
+  ],
+  "/Users/jianbinzhou/code/上地学区房雷达": [
+    { id:"019f6b08-…", title:"成交数据可视化方案", time:"2026-07-16 21:05", model:"openai", msgs:34, cli:"0.142.3",
+      tx:[{k:"user",t:"把近半年成交数据按小区聚合，做成交价分布图"},{k:"tool",t:"exec_command  python3 analyze.py --agg community   ✓ exit=0"},{k:"agent",t:"已按小区聚合完成，输出 charts/price_dist.html，中位价 812 万。"}]},
+    { id:"019f6aff-…", title:"三方谈判智能体", time:"2026-07-16 20:56", model:"openai", msgs:21, cli:"0.142.3" },
+  ],
+  "/Users/jianbinzhou/Documents/营销数字员工项目": [
+    { id:"019eb465-…", title:"制定营销数字员工方案", time:"2026-06-11 02:00", model:"openai", msgs:29, cli:"0.133.0",
+      tx:[{k:"user",t:"帮我制定一个营销数字员工的整体方案"},{k:"agent",t:"方案已输出到 docs/方案.md，含岗位定义、工作流与考核指标。"}]},
+  ],
+};
+const PROJ_ORDER = Object.keys(P);
+let cur = { view:"projects", proj:null, sess:null, way:"ui" };
+
+const panel = document.getElementById("panel");
+const box = document.getElementById("composerBox");
+const toast = document.getElementById("toast");
+
+function esc(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function showToast(msg){
+  toast.textContent = msg; toast.classList.add("show");
+  clearTimeout(showToast._t); showToast._t = setTimeout(()=>toast.classList.remove("show"), 2600);
+}
+
+function render(){
+  const way = cur.way;
+  let html = "";
+  if (cur.view === "projects"){
+    html += '<div class="hdr"><span>📂</span><b>Codex 项目</b><span class="badge">28</span></div>';
+    html += '<div id="search">🔍 搜索项目 / 会话标题…</div><div id="list">';
+    for (const proj of PROJ_ORDER){
+      const n = P[proj].length, last = P[proj][0].time;
+      html += '<div class="item" data-proj="'+esc(proj)+'"><div class="row1"><span class="ic">📁</span><span class="name">'+esc(proj.split("/").pop())+'</span></div><div class="meta"><span>'+n+' 会话</span><span>最近 '+last+'</span><span style="margin-left:auto">›</span></div></div>';
+    }
+    html += '</div>';
+  } else if (cur.view === "sessions"){
+    const proj = cur.proj;
+    html += '<div class="hdr"><span class="back" data-back>‹</span><span class="path">'+esc(proj)+'</span></div>';
+    html += '<div id="list">';
+    P[proj].forEach(s=>{
+      html += '<div class="item" data-sess="'+esc(s.id)+'"><div class="row1"><span class="ic">💬</span><span class="name">'+esc(s.title)+'</span></div><div class="meta"><span>'+s.time+'</span><span class="badge model">'+s.model+'</span><span>'+s.msgs+' msgs</span></div></div>';
+    });
+    html += '</div>';
+  } else {
+    const s = cur.sess;
+    html += '<div class="hdr"><span class="back" data-back>‹</span><b>'+esc(s.title)+'</b></div>';
+    html += '<div id="preview">';
+    html += '<div class="pmeta">cwd: '+esc(cur.proj)+'<br>goal: '+esc(s.goal||"(无)")+'<br>lastUser: '+esc(s.lastUser||"(无)")+'</div>';
+    (s.tx||[]).forEach(m=>{
+      const cls = m.k, lbl = {user:"你", agent:"Codex", tool:"工具", reason:"思考"}[m.k];
+      html += '<div class="pmsg '+cls+'"><span class="lbl">'+lbl+'</span>'+esc(m.t).replace(/  ✓ exit=0/g,' <span class="ok">✓ exit=0</span>')+'</div>';
+    });
+    html += '</div>';
+    html += '<div id="actions"><div class="btn" id="btnResume">⚡ 继续此会话</div><div class="btn" id="btnDoc">📄 交接文档</div><div class="btn" id="btnCopy">📋 复制摘要</div></div>';
+  }
+  panel.innerHTML = html;
+  panel.querySelectorAll(".item[data-proj]").forEach(el=>el.onclick = ()=>{ cur.view="sessions"; cur.proj=el.dataset.proj; render(); });
+  panel.querySelectorAll(".item[data-sess]").forEach(el=>el.onclick = ()=>{ cur.view="preview"; cur.sess = P[cur.proj].find(s=>s.id===el.dataset.sess); render(); });
+  const bk = panel.querySelector("[data-back]"); if (bk) bk.onclick = ()=>{ cur.view = cur.view==="sessions" ? "projects" : "sessions"; render(); };
+  const br = document.getElementById("btnResume");
+  if (br) br.onclick = ()=>{
+    const s = cur.sess;
+    if (way === "ui"){
+      box.classList.add("injected");
+      box.textContent = "继续 Codex 会话《"+s.title+"》(session "+s.id+")：先 codex resume 看现场，再接着把会话同步工具做下去。";
+      showToast("已把续作指令填入输入框 —— 回车即发给 Agent");
+    } else {
+      showToast("方式② 提示：Agent 会直接调 codex(action: resume) 工具，无需手动粘贴");
+    }
+  };
+  const bd = document.getElementById("btnDoc");
+  if (bd) bd.onclick = ()=> showToast("已生成 RESUME.md 写入项目目录（goal + 现场 + 压缩正文）");
+  const bc = document.getElementById("btnCopy");
+  if (bc) bc.onclick = ()=> showToast("已复制摘要：标题 / cwd / goal / 最后消息");
+}
+document.querySelectorAll("#waybar .way").forEach(w=>w.onclick = ()=>{
+  cur.way = w.dataset.way;
+  document.querySelectorAll("#waybar .way").forEach(x=>x.classList.toggle("on", x===w));
+  if (cur.way==="chat"){
+    box.classList.add("injected");
+    box.textContent = "继续我的 Codex 会话《设计会话同步工具》，先看看现场再接着做。";
+    showToast("方式②：不用开侧边栏，直接对 Agent 说话即可");
+  } else {
+    box.classList.remove("injected");
+    box.textContent = "给 Agent 发消息…";
+  }
+});
+render();
+</script>
+</body>
+</html>

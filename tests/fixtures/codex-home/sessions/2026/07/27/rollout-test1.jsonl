@@ -1,0 +1,10 @@
+{"timestamp":"2026-07-27T07:02:00.000Z","type":"session_meta","payload":{"session_id":"sess-111","id":"sess-111","timestamp":"2026-07-27T07:01:00.000Z","cwd":"/tmp/proj-a","originator":"Codex","cli_version":"0.146.0-alpha.3.1","source":"vscode","thread_source":"user","model_provider":"openai"}}
+{"timestamp":"2026-07-27T07:02:00.100Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-1","started_at":1783076520}}
+{"timestamp":"2026-07-27T07:02:01.000Z","type":"response_item","payload":{"type":"message","id":"m1","role":"user","content":[{"type":"input_text","text":"你现在每个会话，是用什么格式存的，我想做一个会话同步的工具，把当前的会话能完整的迁移到另一台电脑上"}]}}
+{"timestamp":"2026-07-27T07:02:01.500Z","type":"response_item","payload":{"type":"message","id":"m2","role":"user","content":[{"type":"input_text","text":"<recommended_plugins>\nHere is a list of plugins that are available but not installed."}]}}
+{"timestamp":"2026-07-27T07:02:02.000Z","type":"response_item","payload":{"type":"reasoning","id":"r1","summary":"先检查本机 Codex 会话存储结构"}}
+{"timestamp":"2026-07-27T07:02:03.000Z","type":"response_item","payload":{"type":"function_call","id":"fc1","name":"exec_command","arguments":"{\"cmd\":\"find ~/.codex -maxdepth 1\",\"workdir\":\"/tmp/proj-a\"}","call_id":"call-1"}}
+{"timestamp":"2026-07-27T07:02:05.000Z","type":"response_item","payload":{"type":"function_call_output","id":"fco1","call_id":"call-1","output":"Chunk ID: 1\nWall time: 0.1 seconds\nProcess exited with code 0\nOutput:\n~/.codex/sessions"}}
+{"timestamp":"2026-07-27T07:02:06.000Z","type":"response_item","payload":{"type":"message","id":"m3","role":"assistant","content":[{"type":"output_text","text":"已确认会话正文在 rollout JSONL，项目会话与非项目会话格式一致。"}]}}
+{"timestamp":"2026-07-27T07:02:07.000Z","type":"response_item","payload":{"type":"function_call_output","id":"fco2","call_id":"call-2","output":[{"type":"output_text","text":"Process exited with code 1\nOutput:\narray-shaped output"}]}}
+this line is not json
