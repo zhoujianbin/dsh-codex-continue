@@ -19,7 +19,7 @@
 | `~/.codex/logs_2.sqlite` (608MB) | 新版桌面端日志库 | **不要扫描** |
 | `~/.codex/auth.json`、`config.toml` | 凭证/密钥 | **绝不读取** |
 
-**ID 映射已验证**：rollout 文件首行 `session_meta.payload.session_id` 与 `session_index.jsonl` 的 `id` 同一套 ID（185 个 rollout 中 184 个与索引重叠）。即：**索引提供标题与时间，rollout 提供正文与项目目录，二者用 session_id 连接**。索引里另有约 20 条在本机没有对应 rollout 文件（可能存于新版桌面端 sqlite 或已归档），v1 以 rollout 文件为准、索引作为标题增强。
+**ID 映射已验证**：rollout 文件首行 `session_meta.payload.session_id` 与 `session_index.jsonl` 的 `id` 同一套 ID。**老版本 CLI 的 session_meta 只有 `payload.id` 没有 `session_id`** → 解析器取 `session_id ?? id`（实现于 v0.1，覆盖 2026-06 之前的旧会话）。即：**索引提供标题与时间，rollout 提供正文与项目目录，二者用 session_id 连接**。索引里另有少量条目在本机没有对应 rollout 文件（可能存于新版桌面端 sqlite 或已归档），v1 以 rollout 文件为准、索引作为标题增强。
 
 **rollout 逐行类型**（已抽样验证）：
 
@@ -40,8 +40,11 @@
 ### 1.2 DSH 插件机制（参照本地已装 `dsh-better-sidebar`，已验证）
 
 - DSH 插件 = 一个 npm 包，**两个半区**：
-  - **Host 半区**（Node/Cordis）：`export const name / inject / apply(ctx)`；可注册 HTTP 前缀路由（`ctx.webServer`）、模型工具（`ctx.tools.register(defineTool(...))`）、服务（`ctx.provide`）、会话投影（`ctx.sessionProjections.register`）。
-  - **Client 半区**（浏览器 Web）：经 `ctx.slots.register(...)` 挂 UI（侧边栏、命令、会话节点等）；依赖 `@deepseek-ai/dsh-client-runtime` 等 client 包，在 `package.json` 的 `dsh.client.inject` 里声明。
+  - **Host 半区**（Node/Cordis）：`export const name / inject / apply`；可注册 HTTP 前缀路由（`ctx.webServer`）、模型工具（`ctx.tools.register(defineTool(...))`）、服务（`ctx.provide`）、会话投影（`ctx.sessionProjections.register`）。
+  - **Client 半区**（浏览器 Web）：以 **CJS + `window.__ModuleLoader__.load({id, factory})`** 注册自身（见 dsh-client-modules 的 Lazy CJS 模型），经 `ctx.inject([...services], cb)` / `ctx.get(...)` 取服务、`ctx.slots.register` 挂 UI；依赖的 client 包在 `package.json` 的 `dsh.client.inject` 里声明。
+- **两个必踩的坑**（v0.1 实测）：
+  1. **host 读配置**：必须用 `apply(ctx, rawConfig)` 的**第二参数**，读 `ctx.config` 会抛 `cannot get property "config" without inject`，整个 DSH 启动失败。
+  2. **client bundle 打包**：必须打成 CJS 并在 banner/footer 里调用 `window.__ModuleLoader__.load` 注册工厂（`tsdown.config.ts`），打成普通 ESM 浏览器侧不会激活（见 `scripts/verify-client-bundle.mjs` 的 VM 回归校验）。
 - 安装：`dsh plugin --profile web add <pkg>`（自动写 `dsh.profile.bundles`）；包的 `dsh.bundle.patch` 指向 `cordis.patch.yml`，内含 `- insert: [{id, name, config}]` 挂载行。开发期也可直接改 `~/.dsh/profiles/web/package.json` + `cordis.patch.yml`。
 - 本项目机器上 web profile 已装 `@linxin666/dsh-web-ui-all`（内含 dsh-better-sidebar），其 sidechat 服务可注册侧边栏 Tab——续作 UI 可直接复用它的 Tab 注册服务，无需另起炉灶。
 
@@ -91,7 +94,7 @@
 
 - 启动时（及每次请求触发刷新）扫描 `codexHome/sessions/**/*.jsonl` 与 `session_index.jsonl`。
 - 对每个 rollout 读首行 `session_meta`（含 cwd、cli_version、model_provider、时间），从索引按 session_id 取 `thread_name`。
-- 缓存到插件数据目录（`~/.dsh/plugin-data/codex-continue/index.json`），按「文件路径 + mtime + 大小」判断增量，避免每次全量解析。
+- 缓存到插件数据目录（`~/.dsh/plugin-data/codex-continue/index.json`），按「文件路径 + mtime」判断增量，避免每次全量解析；缓存绑定 `codexHome`（换目录/目录不存在时不会误用旧缓存）。
 - **标题兜底**：实测最新一批桌面端会话在索引里没有 `thread_name`（显示为空）→ 标题回退为「第一条有实质内容的 user 消息的前 40 字」，仍无则用 session_id 短形式。
 - **索引条目结构**：
 
@@ -118,13 +121,12 @@ interface CodexSessionIndexEntry {
 
 ```ts
 type CodexEvent =
+  | { kind: 'turnStart'; turnId?: string; at?: number }
   | { kind: 'user';     text: string }
   | { kind: 'assistant'; text: string }
   | { kind: 'reasoning'; summary: string }
-  | { kind: 'tool';     name: string; argsPreview: string; callId: string }
-  | { kind: 'toolResult'; callId: string; exitHint: string; outputPreview: string; truncated: boolean }
-  | { kind: 'turnStart'; turnId: string; at: number }
-  | { kind: 'meta';     key: string; value: unknown }
+  | { kind: 'tool';     name: string; argsPreview: string; callId?: string }
+  | { kind: 'toolResult'; callId?: string; exit?: number | null; tail: string; truncated: boolean }
 ```
 
 解析细节（全部经真实数据验证）：
@@ -193,7 +195,7 @@ Codex 会话动辄几百 KB，直接灌上下文必爆。压缩规则（预算�
 | **B. UI 驱动** | 侧边栏选中会话点「继续」 | client 半区把一段预填提示词**注入输入框**（dsh-client-runtime 的 composer 投影能力，不自动发送），用户回车后走路径 A | 浏览场景顺手 |
 | **C. 交接文档** | 「生成交接文档」按钮 | host 把 bundle 渲染成 `RESUME.md` 写入项目目录（或复制到剪贴板） | 换 agent / 给人看 / 留档 |
 
-路径 A 是全插件的核心价值，B/C 是锦上添花。v1 先做 A（只靠 host 半区 + 一个工具），B/C 作为 P2。
+路径 A 是全插件的核心价值。**v0.2 已实现 B（composer 草稿注入）与 C（RESUME.md 写入项目目录）**；路径 B 的「注入输入框」在服务不可用时自动降级为复制到剪贴板。
 
 ---
 
@@ -202,48 +204,45 @@ Codex 会话动辄几百 KB，直接灌上下文必爆。压缩规则（预算�
 ### 5.1 插件骨架
 
 ```ts
-// src/index.ts
+// src/index.ts（与实现一致）
 export const name = 'dsh-codex-continue'
-export const inject = ['webServer', 'sessions', 'tools']   // 按需
-export function apply(ctx: Context) {
-  const index = new CodexIndex(ctx.config)      // 扫描+缓存
-  const parser = new CodexParser()
-  const resume = new ResumeBuilder(ctx.config)
-  ctx.provide('codexContinue', { index, parser, resume, ... })
-  registerRoutes(ctx)     // /codex-continue/api/*
-  registerTool(ctx)       // codex 工具
-  registerProjection(ctx) // codexResume 投影（可选）
+export const inject = ['webServer', 'tools']
+export function apply(ctx, rawConfig = {}) {
+  const config = resolveConfig(rawConfig)   // 配置来自第二参数，绝不可读 ctx.config！
+  const service = new CodexContinueService(config)
+  ctx.provide('codexContinue', service)
+  registerRoutes(ctx, service)   // /codex-continue/api/*
+  ctx.tools.register(createCodexTool(service))
 }
 ```
 
 ### 5.2 REST API（前缀路由，全走只读）
 
+（实现为 **POST-only + 方法名在路径里**，与 dsh-better-sidebar 的 /sidebar/api 同构；每请求过 loopback trust fence：Host-header 为 localhost/127.0.0.1/[::1]，否则 403）
+
 ```
-GET  /codex-continue/api/projects
-     → [{ cwd, name, sessionCount, lastUpdatedAt }]
-GET  /codex-continue/api/sessions?project=&q=&limit=
-     → [{ sessionId, title, cwd, updatedAt, model, messageCount, cliVersion, archived }]
-GET  /codex-continue/api/sessions/:id
-     → 完整规范会话模型（UI 预览用）
-GET  /codex-continue/api/sessions/:id/resume-bundle
-     → ResumeBundle（B 路径也可直接取）
-POST /codex-continue/api/sessions/:id/pending      // 标记「待续作」（幂等）
-GET  /codex-continue/api/pending                    // 当前待续作状态
+POST /codex-continue/api/projects                     → { ok, projects: [{cwd,name,sessionCount,lastUpdatedAt}] }
+POST /codex-continue/api/sessions   {query?,project?} → { ok, sessions: [{sessionId,title,cwd,updatedAt,model,messageCount,archived}] }
+POST /codex-continue/api/session    {session_id}      → { ok, session: {goal,lastUserMessage,lastAssistantMessage,preview,totalEvents,...} }
+POST /codex-continue/api/resume     {session_id}      → { ok, bundle: ResumeBundle }
+POST /codex-continue/api/resume-doc {session_id}      → { ok, path } | { ok:false, error }
+POST /codex-continue/api/health                       → { ok: true }
 ```
 
-路由复用 dsh-better-sidebar 的 trust-fence 思路：Host-header 回环或 `webRuntime.trustedHosts`，与 /api 网关同一信任源。
+> 设计期设想的 `pending`（待续作标记）未实现——路径 B 直接注入输入框，不需要中间状态。
 
 ### 5.3 codex 工具（agent 可调）
 
 ```ts
 defineTool({
   name: 'codex',
-  description: '读取本机 Codex 项目与会话并继续。action: list_projects / list_sessions / show_session / resume。',
-  schema: { action: enum, query?: string, project?: string, session_id?: string },
-  async execute({ action, ... }, exec) {
+  description: '读取本机 Codex 项目与会话并继续。action: list_projects / list_sessions / show_session / resume / resume_doc。',
+  parameters: { action: enum, query?: string, project?: string, session_id?: string },
+  async execute(args, exec) {
     // list_projects: 项目聚合；list_sessions: 按项目/关键词过滤；
     // show_session: 返回规范模型（压缩）；resume: 返回 ResumeBundle，
-    //   并在 bundle 里注明 cwd —— agent 据此用 bash workdir 切换。
+    //   并在 bundle 里注明 cwd —— agent 据此用 bash workdir 切换；
+    // resume_doc: 把 RESUME.md 写入项目目录（v0.2 新增）。
   }
 })
 ```
@@ -261,12 +260,15 @@ defineTool({
     - id: codex-continue
       name: 'dsh-codex-continue'
       config:
-        codexHome: '~/.codex'        # 默认
+        codexHome: '~/.codex'               # 默认
         maxBundleTokens: 60000
-        toolOutputTail: 500
+        toolOutputTail: 400
         argsPreview: 200
+        messageMax: 2000
         cacheDir: '~/.dsh/plugin-data/codex-continue'
         includeGitStatus: true
+        maxAgeDays: 0
+        resumeDocName: 'RESUME.md'          # v0.2
 ```
 
 ---
@@ -275,18 +277,20 @@ defineTool({
 
 ### 6.1 挂载
 
-- 复用 dsh-better-sidebar 的 `registerTab` 服务注册侧边栏 Tab「Codex 续作」（better-sidebar 已提供该服务，且本机已装）；未装时降级为 dsh-client-ui-sidebar 的 slot 注册。
-- `package.json`：`dsh.client.inject: ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-locale", ...]`、`dsh.client.platform: "web"`。
+- 复用 dsh-better-sidebar 的 `registerTab` 服务注册侧边栏 Tab「Codex 续作」（better-sidebar 已提供该服务，且本机已装）；未装时 client 半区保持静默（工具仍可用）。
+- client 半区取服务用 `ctx.inject(['betterSidebar'], cb)`（Codex v0.1 修复，比 `ctx.get` 更规范）；注入输入框走 `ctx.get('conversation')`（懒加载，服务缺失时降级为复制）。
+- `package.json`：`dsh.client.inject: ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-conversation"]`、`dsh.client.platform: "web"`。
 
 ### 6.2 界面与流程
 
 1. **项目列表**：按 cwd 聚合，显示目录名、会话数、最近活动时间；支持搜索。
 2. **会话列表**：选中项目后展示会话（标题、时间、模型、消息数）；按 updated_at 倒序；标出归档。
 3. **会话预览**：渲染 user / assistant / tool / reasoning 的阅读视图（直接吃 host 的规范模型，前端不重复解析）；顶部显示 cwd 与模型信息。
-4. **操作**：
-   - **「继续此会话」** → 把预填提示词注入输入框：`继续 Codex 会话《{title}》(session {id})，先 codex resume 再看现场。` 用户回车即走路径 A。
-   - **「生成交接文档」** → 调 `/resume-bundle`，下载/复制 `RESUME.md`。
-   - **「复制摘要」** → 复制 goal + 最后消息 + 项目路径的紧凑文本。
+4. **操作**（v0.2 已实现）：
+   - **「⚡ 继续此会话」** → 续作指令**注入当前会话输入框草稿**（`conversation.input.for(scope).setDraft`，不自动发送），回车即走路径 A；注入不可用时自动复制到剪贴板。
+   - **「📄 RESUME.md」** → 调 `/resume-doc`，把交接文档写入项目目录并回显路径。
+   - **「📋 摘要」** → 复制 goal + 最后消息 + 项目路径的紧凑文本。
+   - 列表支持**搜索**（项目/会话两级）、**刷新**、**归档标记**、加载/空/错误状态。
 
 全部数据来自 host REST API，client 半区无状态；可选接入 `codexResume` 投影展示「本会话已载入」。
 
@@ -308,10 +312,12 @@ defineTool({
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **P0（核心，价值立现）** | host 半区：codexIndex + codexParser + codex 工具（resume）。装进 web profile | 在 DSH 里说「继续 Codex 会话《设计会话同步工具》」，agent 自动 resume 并接续 |
-| **P1（可用）** | REST API + client 半区：项目/会话列表 + 预览 | 侧边栏能浏览全部会话、预览正文 |
-| **P2（顺滑）** | 「继续」按钮注入输入框 + 交接文档 + 会话投影卡片 + 搜索优化 | 全流程 UI 走通；RESUME.md 可用 |
-| **P3（打磨）** | 归档会话支持、全文检索、token 预算配置页、多 profile / 多 codexHome、桌面端 sqlite 只读支持（better-sqlite3，只读打开） | 长会话/大量会话下依然快 |
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| **P0（核心）** | host 半区：codexIndex + codexParser + codex 工具（resume）。装进 web profile | ✅ 完成（v0.1） |
+| **P1（可用）** | REST API + client 半区：项目/会话列表 + 预览 | ✅ 完成（v0.1） |
+| **P2（顺滑）** | 「继续」按钮注入输入框 + RESUME.md 交接文档 + 搜索/刷新/归档标记 | ✅ 完成（v0.2）；会话投影卡片未做（可选） |
+| **P3（打磨）** | 全文检索、token 预算配置页、多 profile / 多 codexHome、桌面端 sqlite 只读支持（better-sqlite3，只读打开）、把「继续」升级为打开/新建会话后自动预填 | ⏳ 待做 |
 
 ### P0 最小改动路径（不写 UI 也能跑通）
 1. 新建 npm 包，按 dsh-better-sidebar 结构搭 host 半区。
@@ -328,6 +334,7 @@ defineTool({
 - **cwd 目录可能已不存在/被移动** → bundle 标注 `cwdExists`，agent 先验证。
 - **Codex 版本演进**：rollout schema 若变（新事件类型）→ parser 白名单降级，未知类型存 meta 不崩溃。
 - **DSH API 细节**：`ctx.webServer` 前缀路由、`ctx.tools.register`、`ctx.sessionProjections` 的确切签名以 dsh-better-sidebar / dsh-tool-todo / dsh-session-projection 的 README 与类型为准（本文已按其 README 引用）。
+- **已踩的坑（v0.1，务必不要再犯）**：① host 读配置必须用 `apply(ctx, rawConfig)` 第二参数，`ctx.config` 会让整个 DSH 启动失败；② client bundle 必须 CJS + `window.__ModuleLoader__.load` 注册，且 client 取服务用 `ctx.inject` 而非裸 `ctx.get`（`get` 只用于懒加载非关键服务）；③ pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会拦住 `dsh plugin add/remove`，可等满 24h 或单次命令 `--config.minimumReleaseAge=0`（不要改策略文件）。
 
 ---
 
