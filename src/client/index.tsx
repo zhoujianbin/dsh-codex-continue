@@ -12,6 +12,7 @@ import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent, ReactElement, ReactNode } from 'react'
 
 export const name = 'dsh-codex-continue'
+export const inject = [] as const
 
 // Minimal structural types of the better-sidebar service we consume — we do
 // NOT depend on the dsh-better-sidebar package at build time.
@@ -25,16 +26,18 @@ interface BetterSidebarLike {
   isTabEnabled?(id: string): boolean
 }
 
-export function apply(ctx: {
-  get<T = unknown>(key: string): T | undefined
+interface ClientContext {
+  betterSidebar: BetterSidebarLike
+  inject(services: string[], callback: (ctx: ClientContext) => void): unknown
   effect(fn: () => void | (() => void)): void
-}): void {
-  const sidebar = ctx.get<BetterSidebarLike>('betterSidebar')
-  if (!sidebar) {
-    // No better-sidebar — the tool still works; nothing to render.
-    return
-  }
-  ctx.effect(() => sidebar.registerTab({ id: 'codex-continue', title: 'Codex 续作', component: CodexTab }))
+}
+
+export function apply(ctx: ClientContext): void {
+  // Keep the root plugin active even when better-sidebar is absent. The child
+  // scope activates as soon as that optional service appears.
+  ctx.inject(['betterSidebar'], (scope) => {
+    scope.effect(() => scope.betterSidebar.registerTab({ id: 'codex-continue', title: 'Codex 续作', component: CodexTab }))
+  })
 }
 
 // ── UI ────────────────────────────────────────────────────────────────────

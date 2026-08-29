@@ -17,12 +17,11 @@ export const name = 'dsh-codex-continue'
 export const inject = ['webServer', 'tools']
 
 export function apply(ctx: {
-  config: Partial<CodexContinueConfig>
   webServer: { register(r: unknown): unknown }
   tools: { register(t: unknown): unknown }
   provide(name: string, value: unknown): unknown
-}): void {
-  const config = resolveConfig(ctx.config)
+}, rawConfig: Partial<CodexContinueConfig> = {}): void {
+  const config = resolveConfig(rawConfig)
   const service = new CodexContinueService(config)
 
   ctx.provide('codexContinue', service)

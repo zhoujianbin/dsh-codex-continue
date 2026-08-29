@@ -74,6 +74,8 @@ pnpm typecheck
 pnpm build       # tsc host + tsdown client bundle
 ```
 
+> 客户端 bundle 注意事项：client 半区必须以 **CJS + `window.__ModuleLoader__.load({id, factory})`** 形式打包注册（见 `tsdown.config.ts` 的 banner/footer），否则浏览器侧不会激活；`build` 末尾的 `verify-client-bundle.mjs` 会在 VM 里模拟加载器做回归校验。host 半区读配置必须用 `apply(ctx, rawConfig)` 的第二参数，不能读 `ctx.config`。
+
 设计文档见 [DESIGN.md](DESIGN.md)；可交互界面原型见 [ui-mockup/](ui-mockup/)；解析原型见 [poc/](poc/)。
 
 ## License

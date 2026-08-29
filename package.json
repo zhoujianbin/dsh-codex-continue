@@ -76,7 +76,7 @@
     "vitest": "^4.1.8"
   },
   "scripts": {
-    "build": "rm -rf lib && tsc -p tsconfig.build.json && tsdown",
+    "build": "rm -rf lib && tsc -p tsconfig.build.json && tsdown && node scripts/verify-client-bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "prepublishOnly": "pnpm run build"

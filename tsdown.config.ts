@@ -8,9 +8,18 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: { client: 'src/client/index.tsx' },
   outDir: 'lib',
-  format: ['esm'],
-  platform: 'browser',
+  format: ['cjs'],
+  platform: 'node',
   target: 'es2022',
+  outExtensions: () => ({ js: '.js' }),
+  banner: `window.__ModuleLoader__.load({
+  id: "dsh-codex-continue",
+  factory: (require) => {
+    var module = { exports: {} };
+    var exports = module.exports;`,
+  footer: `    return module.exports;
+  }
+});`,
   deps: {
     neverBundle: ['react', 'react-dom', 'react-dom/client', 'cordis', /^@deepseek-ai\//],
   },
