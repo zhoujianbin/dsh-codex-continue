@@ -85,6 +85,19 @@ pnpm build       # tsc host + tsdown client bundle
 
 设计文档见 [DESIGN.md](DESIGN.md)；可交互界面原型见 [ui-mockup/](ui-mockup/)；解析原型见 [poc/](poc/)。
 
+## 发布（npm）
+
+CI 已配置：打 `v*` tag 自动构建并发布（需仓库 `NPM_TOKEN` secret）。
+
+```bash
+npm login                          # 本机登录（一次性）
+git tag v0.2.1                     # 版本号与 package.json 一致
+git push origin v0.2.1             # CI 自动发布
+npm view dsh-codex-continue         # 验证
+```
+
+> 建议在**发布后满 24 小时之前**不要期望别人能立刻安装成功：pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会被供应链策略拦截。
+
 ## License
 
 MIT
