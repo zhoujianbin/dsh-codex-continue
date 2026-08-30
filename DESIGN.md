@@ -318,6 +318,7 @@ defineTool({
 | **P1（可用）** | REST API + client 半区：项目/会话列表 + 预览 | ✅ 完成（v0.1） |
 | **P2（顺滑）** | 「继续」按钮注入输入框 + RESUME.md 交接文档 + 搜索/刷新/归档标记 | ✅ 完成（v0.2）；会话投影卡片未做（可选） |
 | **P3（打磨）** | 全文检索、token 预算配置页、多 profile / 多 codexHome、桌面端 sqlite 只读支持（better-sqlite3，只读打开）、把「继续」升级为打开/新建会话后自动预填 | ⏳ 待做 |
+| **发布** | `dsh-codex-continue@0.2.1` 已发布到 npm（2026-08-30），tag `v*` 触发 GitHub Actions 自动发布（需仓库 `NPM_TOKEN` secret） | ✅ 完成（v0.2.1） |
 
 ### P0 最小改动路径（不写 UI 也能跑通）
 1. 新建 npm 包，按 dsh-better-sidebar 结构搭 host 半区。

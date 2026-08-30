@@ -22,6 +22,8 @@ dsh plugin --profile web add dsh-codex-continue
 # 重启 dsh web 生效
 ```
 
+> ⚠️ 插件发布后 **24 小时内**，pnpm 11 的供应链策略（`minimumReleaseAge=1440`）会拦截安装；此时请在命令后加 `--config.minimumReleaseAge=0`（单次生效，不改任何配置）。
+
 侧边栏 UI 需要 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)（没有也能用——`codex` 工具始终可用）。
 
 ## 使用
