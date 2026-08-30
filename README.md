@@ -2,6 +2,10 @@
 
 > DSH 插件：读取本机 OpenAI Codex 的项目与会话，在 DSH 里无缝「继续」——Codex 5 小时限额到了，活不丢，换个环境接着干。
 
+<div align="center">
+  <img src="screenshots/banner.webp" alt="dsh-codex-continue banner" width="100%">
+</div>
+
 在 DSH（[DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness)）里浏览你的 Codex 历史会话（`~/.codex/sessions/*.jsonl`，**只读**），选中任意会话后生成一份「续作包」——目标 + 最后消息 + 压缩正文 + 项目目录 + git 状态——交给 DSH agent，让它以原工作目录为基准继续完成 Codex 没做完的工作。
 
 ## 特性
