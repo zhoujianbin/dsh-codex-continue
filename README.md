@@ -14,6 +14,14 @@
 - 🔍 **浏览体验**：项目/会话搜索、刷新、归档标记、goal/最后消息预览
 - 🔒 **安全**：只读 rollout JSONL + 索引；绝不读 `auth.json` / `config.toml` / sqlite
 
+## 界面预览
+
+侧边栏新增「✦ Codex 续作」Tab，按工作目录聚合你的 Codex 项目；点进任意会话即可预览目标与最近进展，点「⚡ 继续此会话」把续作指令注入输入框，一键在 DSH 里接着干活。
+
+![侧边栏「Codex 续作」Tab 入口](screenshots/interface-tab.webp)
+
+![会话预览与「继续此会话」按钮](screenshots/interface-button.webp)
+
 ## 安装
 
 ```bash
