@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-continue",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "DSH plugin: browse local Codex projects & sessions and continue them in DSH — read ~/.codex rollouts, pick a session, resume with full context (goal + transcript + cwd).",
   "type": "module",
   "keywords": ["dsh", "dsh-plugin", "codex", "resume", "session", "openai-codex"],

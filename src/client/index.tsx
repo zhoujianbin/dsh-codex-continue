@@ -153,7 +153,10 @@ const S = {
   lbl: { display: 'block', fontSize: 10, color: C.dim, marginBottom: 2 },
   actions: { borderTop: '1px solid ' + C.border, padding: 10, display: 'flex', gap: 8, flexShrink: 0 },
   btn: { flex: 1, textAlign: 'center' as const, padding: '8px 4px', borderRadius: 8, border: '1px solid ' + C.border2, background: C.bg2, color: C.text, fontSize: 12, cursor: 'pointer' },
-  primary: { background: C.brand, borderColor: C.brand, color: C.brandInvert, fontWeight: 600 },
+  // The primary button is self-contained (own bg + text) so it never depends
+  // on the theme's brand colors — fixed blue bg + white text, always readable.
+  primary: { background: '#3b82f6', borderColor: '#3b82f6', color: '#ffffff', fontWeight: 600 },
+  primaryHover: { background: '#2563eb', borderColor: '#2563eb' },
   toast: { margin: '0 10px 10px', padding: '8px 10px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-3, #2a2f37)', border: '1px solid ' + C.border2, fontSize: 11.5, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-all' as const, maxHeight: 90, overflowY: 'auto' as const, flexShrink: 0, color: C.text },
   note: { padding: '14px 12px', color: C.dim, fontSize: 11.5, lineHeight: 1.7, textAlign: 'center' as const },
   err: { padding: '10px 12px', color: C.error, fontSize: 11.5, lineHeight: 1.6 },
@@ -338,7 +341,7 @@ function CodexTab(props: unknown): ReactElement {
       ),
       msg ? h('div', { style: S.toast }, msg) : null,
       h('div', { style: S.actions }, [
-        h('button', { style: { ...S.btn, ...S.primary }, onClick: continueSession }, '⚡ 继续此会话'),
+        h('button', { style: { ...S.btn, ...S.primary }, onClick: continueSession, onMouseEnter: (ev: MouseEvent<HTMLButtonElement>) => { ev.currentTarget.style.background = S.primaryHover.background; ev.currentTarget.style.borderColor = S.primaryHover.borderColor }, onMouseLeave: (ev: MouseEvent<HTMLButtonElement>) => { ev.currentTarget.style.background = S.primary.background; ev.currentTarget.style.borderColor = S.primary.borderColor } }, '⚡ 继续此会话'),
         h('button', { style: S.btn, onClick: writeResumeDoc }, '📄 RESUME.md'),
         h('button', { style: S.btn, onClick: copySummary }, '📋 摘要'),
       ]),
