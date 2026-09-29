@@ -14,7 +14,7 @@
 - 🔎 **会话预览**：goal / 最后消息 / 分色正文（你 / Codex / 思考 / 工具调用）
 - ⚡ **续作包 resume bundle**：token 预算内压缩正文（工具输出截尾、reasoning 只留摘要、按 callId 配对），附 `cwd` 存在性与 `git status`
 - ✍️ **一键继续**：侧边栏点「⚡ 继续此会话」直接把续作指令注入输入框（不再需要复制粘贴）；「📄 RESUME.md」在项目目录生成交接文档（换 agent / 给人看 / 跨机迁移都可用）
-- 🧰 **两种用法**：直接在对话里指挥 agent 调 `codex` 工具（主路径），或侧边栏「Codex 续作」Tab 浏览后点继续（需 dsh-better-sidebar）
+- 🧰 **两种用法**：直接在对话里指挥 agent 调 `codex` 工具（主路径），或 DSH 2.0 原生右侧栏「Codex 续作」Tab 浏览后点继续
 - 🔍 **浏览体验**：项目/会话搜索、刷新、归档标记、goal/最后消息预览
 - 🔒 **安全**：只读 rollout JSONL + 索引；绝不读 `auth.json` / `config.toml` / sqlite
 
@@ -36,7 +36,11 @@ dsh plugin --profile web add dsh-codex-continue
 
 > ⚠️ 插件发布后 **24 小时内**，pnpm 11 的供应链策略（`minimumReleaseAge=1440`）会拦截安装；此时请在命令后加 `--config.minimumReleaseAge=0`（单次生效，不改任何配置）。
 
-侧边栏 UI 需要 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)（没有也能用——`codex` 工具始终可用）。
+侧边栏 UI 使用 DSH 2.0 原生 `sidebarRightTabs + slots` 扩展机制；没有右侧栏时仍可用 `codex` 工具。当前主线移植目标为 DSH `0.2.0-rc.1`。
+
+## DSH 2.0 兼容性
+
+当前开发分支已迁移到 DSH `0.2.0-rc.1` 的原生右侧栏扩展 API：`ctx.sidebarRightTabs` + `ctx.slots`。不要把 npm `0.2.2` 直接装进 DSH 2.0；请等待 `0.3.0` 发布，或使用仓库当前版本本地测试。
 
 ## 使用
 

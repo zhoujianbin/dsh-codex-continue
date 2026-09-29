@@ -37,7 +37,7 @@
 
 要点：`content` 是**数组**（`input_text`/`output_text` 部件）；`function_call` 的 `arguments` 是 JSON 字符串；`function_call_output` 的 `output` 可能很大（实测 3KB~18KB），**续作时绝不能原样灌进上下文**。
 
-### 1.2 DSH 插件机制（参照本地已装 `dsh-better-sidebar`，已验证）
+### 1.2 DSH 插件机制（DSH 2.0，`0.2.0-rc.1` 已验证）
 
 - DSH 插件 = 一个 npm 包，**两个半区**：
   - **Host 半区**（Node/Cordis）：`export const name / inject / apply`；可注册 HTTP 前缀路由（`ctx.webServer`）、模型工具（`ctx.tools.register(defineTool(...))`）、服务（`ctx.provide`）、会话投影（`ctx.sessionProjections.register`）。
@@ -46,7 +46,7 @@
   1. **host 读配置**：必须用 `apply(ctx, rawConfig)` 的**第二参数**，读 `ctx.config` 会抛 `cannot get property "config" without inject`，整个 DSH 启动失败。
   2. **client bundle 打包**：必须打成 CJS 并在 banner/footer 里调用 `window.__ModuleLoader__.load` 注册工厂（`tsdown.config.ts`），打成普通 ESM 浏览器侧不会激活（见 `scripts/verify-client-bundle.mjs` 的 VM 回归校验）。
 - 安装：`dsh plugin --profile web add <pkg>`（自动写 `dsh.profile.bundles`）；包的 `dsh.bundle.patch` 指向 `cordis.patch.yml`，内含 `- insert: [{id, name, config}]` 挂载行。开发期也可直接改 `~/.dsh/profiles/web/package.json` + `cordis.patch.yml`。
-- 本项目机器上 web profile 已装 `@linxin666/dsh-web-ui-all`（内含 dsh-better-sidebar），其 sidechat 服务可注册侧边栏 Tab——续作 UI 可直接复用它的 Tab 注册服务，无需另起炉灶。
+- DSH 2.0 不再依赖第三方 better-sidebar；续作 UI 使用官方 `@deepseek-ai/dsh-client-ui-sidebar-right` 的 `ctx.sidebarRightTabs.register(...)`，再用 `@deepseek-ai/dsh-client-ui-slots` 注册 `sidebar.right.pane.tab` body。官方 documentpreview 插件是同一公开路径的参考实现。
 
 ---
 
@@ -192,7 +192,7 @@ Codex 会话动辄几百 KB，直接灌上下文必爆。压缩规则（预算�
 | 路径 | 触发 | 机制 | 适用 |
 |---|---|---|---|
 | **A. 工具驱动（主路径）** | 用户在 DSH 说「继续 Codex 会话《X》」 | agent 调 `codex resume(session_id)`，bundle 作为**工具结果**直接落入上下文；agent 以 `cwd` 为 workdir 继续 | 最稳、零 UI 依赖 |
-| **B. UI 驱动** | 侧边栏选中会话点「继续」 | client 半区把一段预填提示词**注入输入框**（dsh-client-runtime 的 composer 投影能力，不自动发送），用户回车后走路径 A | 浏览场景顺手 |
+| **B. UI 驱动** | 侧边栏选中会话点「继续」 | client 半区把一段预填提示词**注入输入框**（`dsh-client-ui-conversation` 的 composer draft，不自动发送），用户回车后走路径 A | 浏览场景顺手 |
 | **C. 交接文档** | 「生成交接文档」按钮 | host 把 bundle 渲染成 `RESUME.md` 写入项目目录（或复制到剪贴板） | 换 agent / 给人看 / 留档 |
 
 路径 A 是全插件的核心价值。**v0.2 已实现 B（composer 草稿注入）与 C（RESUME.md 写入项目目录）**；路径 B 的「注入输入框」在服务不可用时自动降级为复制到剪贴板。
@@ -277,9 +277,9 @@ defineTool({
 
 ### 6.1 挂载
 
-- 复用 dsh-better-sidebar 的 `registerTab` 服务注册侧边栏 Tab「Codex 续作」（better-sidebar 已提供该服务，且本机已装）；未装时 client 半区保持静默（工具仍可用）。
-- client 半区取服务用 `ctx.inject(['betterSidebar'], cb)`（Codex v0.1 修复，比 `ctx.get` 更规范）；注入输入框走 `ctx.get('conversation')`（懒加载，服务缺失时降级为复制）。
-- `package.json`：`dsh.client.inject: ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-conversation"]`、`dsh.client.platform: "web"`。
+- DSH 2.0 client 半区先注册 tab type：`ctx.sidebarRightTabs.register({id, kind, title, priority})`，再注册 body：`ctx.slots.register({name: 'sidebar.right.pane.tab', key: id}, Body)`。
+- 当前会话的 composer 仍通过 `ctx.get('conversation')` 懒加载；slot body 的 session identity 由 2.0 session-scope 注入。服务缺失时降级为复制。
+- `package.json`：`dsh.client.inject` 使用 `dsh-client-locale`、`dsh-client-ui-conversation`、`dsh-client-ui-sidebar-right`、`dsh-client-ui-slots`、`dsh-client-ui-session`。
 
 ### 6.2 界面与流程
 
@@ -314,11 +314,11 @@ defineTool({
 |---|---|---|
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| **P0（核心）** | host 半区：codexIndex + codexParser + codex 工具（resume）。装进 web profile | ✅ 完成（v0.1） |
+| **P0（核心）** | host 半区：codexIndex + codexParser + codex 工具（resume）。装进 web profile | ✅ 完成（v0.1；2.0 host boot/API 已验证） |
 | **P1（可用）** | REST API + client 半区：项目/会话列表 + 预览 | ✅ 完成（v0.1） |
-| **P2（顺滑）** | 「继续」按钮注入输入框 + RESUME.md 交接文档 + 搜索/刷新/归档标记 | ✅ 完成（v0.2）；会话投影卡片未做（可选） |
+| **P2（顺滑）** | 「继续」按钮注入输入框 + RESUME.md 交接文档 + 搜索/刷新/归档标记 | ✅ 完成（v0.2）；2.0 sidebar slot 迁移进行中 |
 | **P3（打磨）** | 全文检索、token 预算配置页、多 profile / 多 codexHome、桌面端 sqlite 只读支持（better-sqlite3，只读打开）、把「继续」升级为打开/新建会话后自动预填 | ⏳ 待做 |
-| **发布** | `dsh-codex-continue@0.2.1` 已发布到 npm（2026-08-30），tag `v*` 触发 GitHub Actions 自动发布（需仓库 `NPM_TOKEN` secret） | ✅ 完成（v0.2.1） |
+| **发布** | `dsh-codex-continue@0.2.2` 已发布到 npm；当前 0.3.0 为 DSH 2.0 移植开发版本，tag `v*` 触发 GitHub Actions 自动发布 | ✅ v0.2.2；0.3.0 待实测 |
 
 ### P0 最小改动路径（不写 UI 也能跑通）
 1. 新建 npm 包，按 dsh-better-sidebar 结构搭 host 半区。
@@ -335,7 +335,7 @@ defineTool({
 - **cwd 目录可能已不存在/被移动** → bundle 标注 `cwdExists`，agent 先验证。
 - **Codex 版本演进**：rollout schema 若变（新事件类型）→ parser 白名单降级，未知类型存 meta 不崩溃。
 - **DSH API 细节**：`ctx.webServer` 前缀路由、`ctx.tools.register`、`ctx.sessionProjections` 的确切签名以 dsh-better-sidebar / dsh-tool-todo / dsh-session-projection 的 README 与类型为准（本文已按其 README 引用）。
-- **已踩的坑（v0.1，务必不要再犯）**：① host 读配置必须用 `apply(ctx, rawConfig)` 第二参数，`ctx.config` 会让整个 DSH 启动失败；② client bundle 必须 CJS + `window.__ModuleLoader__.load` 注册，且 client 取服务用 `ctx.inject` 而非裸 `ctx.get`（`get` 只用于懒加载非关键服务）；③ pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会拦住 `dsh plugin add/remove`，可等满 24h 或单次命令 `--config.minimumReleaseAge=0`（不要改策略文件）。
+- **已踩的坑（v0.1/v0.3，务必不要再犯）**：① host 读配置必须用 `apply(ctx, rawConfig)` 第二参数，`ctx.config` 会让整个 DSH 启动失败；② client bundle 必须 CJS + `window.__ModuleLoader__.load` 注册，且 client 取服务用 `ctx.inject` 而非裸 `ctx.get`（`get` 只用于懒加载非关键服务）；③ pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会拦住 `dsh plugin add/remove`，可等满 24h 或单次命令 `--config.minimumReleaseAge=0`（不要改策略文件）。
 
 ---
 

@@ -1,9 +1,8 @@
 /**
  * dsh-codex-continue client half — a "Codex 续作" tab in the right sidebar.
  *
- * Registers into dsh-better-sidebar's `ctx.betterSidebar.registerTab`
- * service when present; without better-sidebar the plugin still works
- * through the `codex` tool (this half just stays silent).
+ * Registers into DSH 2.0's native right-sidebar tab registry and keyed slot.
+ * Without the right-sidebar surface the host-side `codex` tool still works.
  *
  * The tab talks to the host half through POST /codex-continue/api/* (the
  * same loopback-fenced prefix route the tool uses).
@@ -22,34 +21,39 @@ import type { MouseEvent, ReactElement, ReactNode } from 'react'
 export const name = 'dsh-codex-continue'
 export const inject = [] as const
 
-// Minimal structural types of the services we consume — no build-time
-// dependency on dsh-better-sidebar or the conversation package.
-interface TabDescriptorLike {
-  id: string
-  title: string
-  component: (props: unknown) => ReactNode
-}
-interface BetterSidebarLike {
-  registerTab(descriptor: TabDescriptorLike): () => void
-  isTabEnabled?(id: string): boolean
-}
+// DSH 2.0 native right-sidebar extension: a tab type plus a keyed body slot.
+// The official document-preview plugin uses this same public path.
+const TAB_ID = 'dsh-codex-continue'
+const TAB_KIND = 'dsh-codex-continue'
 interface ClientContext {
-  betterSidebar: BetterSidebarLike
   inject(services: string[], callback: (ctx: ClientContext) => void): unknown
   effect(fn: () => void | (() => void)): void
+  sidebarRightTabs: { register(definition: { id: string; kind: string; title: (address: string) => string; priority?: string; guide?: readonly { id: string; order: number; title: () => string; description?: () => string }[] }): () => void }
+  slots: { register(options: { name: string; key: string; inject?: (...args: unknown[]) => unknown }, component: (props: unknown) => ReactNode): () => void }
 }
 
 export function apply(ctx: ClientContext): void {
-  // Keep the root plugin active even when better-sidebar is absent. The child
-  // scope activates as soon as that optional service appears.
-  ctx.inject(['betterSidebar'], (scope) => {
-    scope.effect(() => scope.betterSidebar.registerTab({ id: 'codex-continue', title: 'Codex 续作', component: CodexTab }))
+  ctx.inject(['sidebarRightTabs', 'slots'], (scope) => {
+    scope.effect(() => {
+      const disposeType = scope.sidebarRightTabs.register({
+        id: TAB_ID,
+        kind: TAB_KIND,
+        priority: 'extension',
+        title: () => 'Codex 续作',
+        guide: [{ id: TAB_ID, order: 80, title: () => 'Codex 续作', description: () => '浏览并继续本机 Codex 会话' }],
+      })
+      const disposeBody = scope.slots.register({
+        name: 'sidebar.right.pane.tab',
+        key: TAB_ID,
+        inject: (sessionId: unknown) => ({ sessionId }),
+      }, CodexTab)
+      return () => { disposeBody(); disposeType() }
+    })
   })
 }
 
 // ── Structural faces for the current session + composer draft ─────────────
 
-interface SessionScope { sessionId: string; cwd?: string }
 interface SessionInput {
   state: { getSnapshot(): { draft: string } }
   setDraft(text: string): void
@@ -63,9 +67,8 @@ interface TabCtxLike {
 }
 interface TabPropsLike {
   ctx: TabCtxLike
-  scope: SessionScope
-  tab: unknown
-  visible: boolean
+  sessionId: string
+  hooks?: { tabInfo?: () => unknown }
 }
 
 /** Append text to the current session's composer draft; false when unavailable. */
@@ -222,7 +225,7 @@ function CodexTab(props: unknown): ReactElement {
     if (!detail) return
     const title = detail.title ?? detail.sessionId
     const text = '继续 Codex 会话《' + title + '》(session ' + detail.sessionId + ')：先 codex resume 看现场，再继续做。'
-    if (appendToDraft(tabProps.ctx, tabProps.scope.sessionId, text)) {
+    if (appendToDraft(tabProps.ctx, tabProps.sessionId, text)) {
       setMsg('已填入下方输入框，回车发送即可。')
     } else {
       navigator.clipboard?.writeText(text).catch(() => {})
