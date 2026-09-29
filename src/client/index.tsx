@@ -19,37 +19,41 @@ import { createElement as h, useEffect, useState } from 'react'
 import type { MouseEvent, ReactElement, ReactNode } from 'react'
 
 export const name = 'dsh-codex-continue'
-export const inject = [] as const
+// Cordis client-service dependency contract. Package-level client module
+// dependencies belong in package.json under dsh.client.inject; this runtime
+// list must use the services that apply() reads from the client context.
+export const inject = [
+  'slots',
+  'sidebarRightTabs',
+] as const
 
 // DSH 2.0 native right-sidebar extension: a tab type plus a keyed body slot.
 // The official document-preview plugin uses this same public path.
 const TAB_ID = 'dsh-codex-continue'
 const TAB_KIND = 'dsh-codex-continue'
 interface ClientContext {
-  inject(services: string[], callback: (ctx: ClientContext) => void): unknown
-  effect(fn: () => void | (() => void)): void
+  effect(fn: () => void | (() => void), label?: string): void
   sidebarRightTabs: { register(definition: { id: string; kind: string; title: (address: string) => string; priority?: string; guide?: readonly { id: string; order: number; title: () => string; description?: () => string }[] }): () => void }
-  slots: { register(options: { name: string; key: string; inject?: (...args: unknown[]) => unknown }, component: (props: unknown) => ReactNode): () => void }
+  slots: {
+    inject(name: string, callback: () => void | (() => void)): void
+    register(options: { name: string; key: string; inject?: (...args: unknown[]) => unknown }, component: (props: unknown) => ReactNode): () => void
+  }
 }
 
 export function apply(ctx: ClientContext): void {
-  ctx.inject(['sidebarRightTabs', 'slots'], (scope) => {
-    scope.effect(() => {
-      const disposeType = scope.sidebarRightTabs.register({
-        id: TAB_ID,
-        kind: TAB_KIND,
-        priority: 'extension',
-        title: () => 'Codex 续作',
-        guide: [{ id: TAB_ID, order: 80, title: () => 'Codex 续作', description: () => '浏览并继续本机 Codex 会话' }],
-      })
-      const disposeBody = scope.slots.register({
-        name: 'sidebar.right.pane.tab',
-        key: TAB_ID,
-        inject: (sessionId: unknown) => ({ sessionId }),
-      }, CodexTab)
-      return () => { disposeBody(); disposeType() }
-    })
-  })
+  ctx.effect(() => ctx.sidebarRightTabs.register({
+    id: TAB_ID,
+    kind: TAB_KIND,
+    priority: 'extension',
+    title: () => 'Codex 续作',
+    guide: [{ id: TAB_ID, order: 80, title: () => 'Codex 续作', description: () => '浏览并继续本机 Codex 会话' }],
+  }), 'dsh-codex-continue: sidebar tab type')
+
+  ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: TAB_ID,
+    inject: (sessionId: unknown) => ({ sessionId }),
+  }, CodexTab)), 'dsh-codex-continue: sidebar tab body')
 }
 
 // ── Structural faces for the current session + composer draft ─────────────
