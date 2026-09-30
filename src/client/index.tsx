@@ -8,7 +8,7 @@
  * same loopback-fenced prefix route the tool uses).
  *
  * v0.2: "继续此会话" injects the instruction into the current conversation's
- * composer draft (via ctx.get('conversation')), and "RESUME.md" writes the
+ * session-scoped composer draft, and "RESUME.md" writes the
  * handoff document into the project directory.
  * v0.2.1: theme-aware colors (DSH --dsw-alias-* tokens with dark fallbacks)
  * so the panel stays legible in light themes; projects show the full
@@ -61,13 +61,16 @@ export function apply(ctx: ClientContext): void {
 interface SessionInput {
   state: { getSnapshot(): { draft: string } }
   setDraft(text: string): void
+  focus?(): void
 }
 interface ConversationLike {
   input: { for(actx: unknown): SessionInput }
 }
-interface TabCtxLike {
-  sessions?: { scope(sessionId: string): unknown }
+interface SessionScopeLike {
   get<T = unknown>(key: string): T | undefined
+}
+interface TabCtxLike {
+  sessions?: { scope(sessionId: string): SessionScopeLike | undefined }
 }
 interface TabPropsLike {
   ctx: TabCtxLike
@@ -76,15 +79,18 @@ interface TabPropsLike {
 }
 
 /** Append text to the current session's composer draft; false when unavailable. */
-function appendToDraft(ctx: TabCtxLike, sessionId: string, text: string): boolean {
+export function appendToDraft(ctx: TabCtxLike, sessionId: string, text: string): boolean {
   try {
     const actx = ctx.sessions?.scope(sessionId)
     if (!actx) return false
-    const conversation = ctx.get<ConversationLike>('conversation')
+    // DSH 2.0 exposes conversation as a session-scoped service. Reading it from
+    // the root tab context returns undefined; resolve it through the scoped ctx.
+    const conversation = actx.get<ConversationLike>('conversation')
     if (!conversation) return false
     const input = conversation.input.for(actx)
     const draft = input.state.getSnapshot().draft
     input.setDraft(draft.trim() === '' ? text : draft + ' ' + text)
+    input.focus?.()
     return true
   } catch {
     return false
