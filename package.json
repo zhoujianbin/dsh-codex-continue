@@ -1,15 +1,24 @@
 {
   "name": "dsh-codex-continue",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DSH plugin: browse local Codex projects & sessions and continue them in DSH — read ~/.codex rollouts, pick a session, resume with full context (goal + transcript + cwd).",
   "type": "module",
-  "keywords": ["dsh", "dsh-plugin", "codex", "resume", "session", "openai-codex"],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "codex",
+    "resume",
+    "session",
+    "openai-codex"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/zhoujianbin/dsh-codex-continue"
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
@@ -31,9 +40,13 @@
     "README.md",
     "LICENSE"
   ],
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-locale",
@@ -61,7 +74,9 @@
     "react-dom": "^18.2.0"
   },
   "peerDependenciesMeta": {
-    "cordis": { "optional": true }
+    "cordis": {
+      "optional": true
+    }
   },
   "dependencies": {},
   "devDependencies": {

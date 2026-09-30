@@ -41,7 +41,7 @@
 
 - DSH 插件 = 一个 npm 包，**两个半区**：
   - **Host 半区**（Node/Cordis）：`export const name / inject / apply`；可注册 HTTP 前缀路由（`ctx.webServer`）、模型工具（`ctx.tools.register(defineTool(...))`）、服务（`ctx.provide`）、会话投影（`ctx.sessionProjections.register`）。
-  - **Client 半区**（浏览器 Web）：以 **CJS + `window.__ModuleLoader__.load({id, factory})`** 注册自身（见 dsh-client-modules 的 Lazy CJS 模型），通过模块级 `export const inject = ['slots', 'sidebarRightTabs']` 声明运行时 Cordis 服务、用 `ctx.get(...)` 懒加载非关键服务，并通过 `ctx.slots.register` 挂 UI；依赖的 client 包在 `package.json` 的 `dsh.client.inject` 里声明。
+  - **Client 半区**（浏览器 Web）：以 **CJS + `window.__ModuleLoader__.load({id, factory})`** 注册自身（见 dsh-client-modules 的 Lazy CJS 模型），通过模块级 `export const inject = ['slots', 'sidebarRightTabs', 'sessions']` 声明运行时 Cordis 服务、用 `ctx.get(...)` 懒加载非关键服务，并通过 `ctx.slots.register` 挂 UI；依赖的 client 包在 `package.json` 的 `dsh.client.inject` 里声明。
 - **两个必踩的坑**（v0.1 实测）：
   1. **host 读配置**：必须用 `apply(ctx, rawConfig)` 的**第二参数**，读 `ctx.config` 会抛 `cannot get property "config" without inject`，整个 DSH 启动失败。
   2. **client bundle 打包**：必须打成 CJS 并在 banner/footer 里调用 `window.__ModuleLoader__.load` 注册工厂（`tsdown.config.ts`），打成普通 ESM 浏览器侧不会激活（见 `scripts/verify-client-bundle.mjs` 的 VM 回归校验）。
@@ -278,7 +278,7 @@ defineTool({
 ### 6.1 挂载
 
 - DSH 2.0 client 半区先注册 tab type：`ctx.sidebarRightTabs.register({id, kind, title, priority})`，再注册 body：`ctx.slots.register({name: 'sidebar.right.pane.tab', key: id}, Body)`。
-- 当前会话的 composer 仍通过 `ctx.get('conversation')` 懒加载；slot body 的 session identity 由 2.0 session-scope 注入。服务缺失时降级为复制。
+- slot 注册的 `inject(sessionId)` 通过闭包向 body 显式传入 `appendDraft` 动作；该动作先由 `ctx.sessions.scope(sessionId)` 获取会话上下文，再经 `actx.get('conversation').input.for(actx)` 写入草稿。服务缺失时降级为复制。
 - `package.json`：`dsh.client.inject` 使用 `dsh-client-locale`、`dsh-client-ui-conversation`、`dsh-client-ui-sidebar-right`、`dsh-client-ui-slots`、`dsh-client-ui-session`。
 
 ### 6.2 界面与流程
@@ -316,7 +316,7 @@ defineTool({
 | **P1（可用）** | REST API + client 半区：项目/会话列表 + 预览 | ✅ 完成（v0.1；2.0 client 加载/浏览器 UI 已验证） |
 | **P2（顺滑）** | 「继续」按钮注入输入框 + RESUME.md 交接文档 + 搜索/刷新/归档标记 | ✅ 完成（v0.2；v0.3 已迁移到 2.0 原生 sidebar slot） |
 | **P3（打磨）** | 全文检索、token 预算配置页、多 profile / 多 codexHome、桌面端 sqlite 只读支持（better-sqlite3，只读打开）、把「继续」升级为打开/新建会话后自动预填 | ⏳ 待做 |
-| **发布** | `dsh-codex-continue@0.2.2` 已发布到 npm；0.3.0 的 DSH 2.0 移植和真机验证已完成，tag `v*` 触发 GitHub Actions 自动发布 | ✅ 0.3.0 待发布 |
+| **发布** | `dsh-codex-continue@0.3.0` 已发布到 npm，支持 DSH 2.0；tag `v*` 触发 GitHub Actions 自动发布 | ✅ 已发布 |
 
 ### P0 最小改动路径（不写 UI 也能跑通）
 1. 新建 npm 包，按 dsh-better-sidebar 结构搭 host 半区。
@@ -333,7 +333,7 @@ defineTool({
 - **cwd 目录可能已不存在/被移动** → bundle 标注 `cwdExists`，agent 先验证。
 - **Codex 版本演进**：rollout schema 若变（新事件类型）→ parser 白名单降级，未知类型存 meta 不崩溃。
 - **DSH API 细节**：`ctx.webServer` 前缀路由、`ctx.tools.register`、`ctx.sessionProjections` 的确切签名以 dsh-better-sidebar / dsh-tool-todo / dsh-session-projection 的 README 与类型为准（本文已按其 README 引用）。
-- **已踩的坑（v0.1/v0.3，务必不要再犯）**：① host 读配置必须用 `apply(ctx, rawConfig)` 第二参数，`ctx.config` 会让整个 DSH 启动失败；② client bundle 必须 CJS + `window.__ModuleLoader__.load` 注册；DSH 2.0 的包级 client 依赖写在 `package.json#dsh.client.inject`，运行时 Cordis 服务名写在模块级 `export const inject = ['slots', 'sidebarRightTabs']`，`ctx.get` 只用于懒加载非关键服务；③ pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会拦住 `dsh plugin add/remove`，可等满 24h 或单次命令 `--config.minimumReleaseAge=0`（不要改策略文件）。
+- **已踩的坑（v0.1/v0.3，务必不要再犯）**：① host 读配置必须用 `apply(ctx, rawConfig)` 第二参数，`ctx.config` 会让整个 DSH 启动失败；② client bundle 必须 CJS + `window.__ModuleLoader__.load` 注册；DSH 2.0 的包级 client 依赖写在 `package.json#dsh.client.inject`，运行时 Cordis 服务名写在模块级 `export const inject = ['slots', 'sidebarRightTabs', 'sessions']`，`ctx.get` 只用于懒加载非关键服务；③ pnpm 11 默认 `minimumReleaseAge=1440`（24h），刚发布的包会拦住 `dsh plugin add/remove`，可等满 24h 或单次命令 `--config.minimumReleaseAge=0`（不要改策略文件）。
 
 ---
 

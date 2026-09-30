@@ -36,11 +36,11 @@ dsh plugin --profile web add dsh-codex-continue
 
 > ⚠️ 插件发布后 **24 小时内**，pnpm 11 的供应链策略（`minimumReleaseAge=1440`）会拦截安装；此时请在命令后加 `--config.minimumReleaseAge=0`（单次生效，不改任何配置）。
 
-侧边栏 UI 使用 DSH 2.0 原生 `sidebarRightTabs + slots` 扩展机制；没有右侧栏时仍可用 `codex` 工具。当前 `0.3.0` 已在 DSH `0.2.0-rc.1` 上完成 host 启动、REST API、client 加载和真实浏览器 UI 验证。
+侧边栏 UI 使用 DSH 2.0 原生 `sidebarRightTabs + slots` 扩展机制；没有右侧栏时仍可用 `codex` 工具。当前 `0.3.x` 已在 DSH `0.2.0-rc.1` 上完成 host 启动、REST API、client 加载、真实浏览器 UI 和输入框注入验证。
 
 ## DSH 2.0 兼容性
 
-`0.3.0` 已迁移到 DSH `0.2.0-rc.1` 的原生右侧栏扩展 API：`ctx.sidebarRightTabs` + `ctx.slots`，并完成正式服务与真实浏览器验证。npm `0.2.2` 仍面向旧版 DSH，不要直接装进 DSH 2.0；在 `0.3.0` 发布前可使用仓库当前版本本地安装。
+npm `0.3.x` 已迁移到 DSH `0.2.0-rc.1` 的原生右侧栏扩展 API：`ctx.sidebarRightTabs` + `ctx.slots`，并完成正式服务、真实浏览器和输入框注入验证。`0.2.2` 仍面向旧版 DSH，不要直接装进 DSH 2.0。
 
 ## 使用
 
@@ -109,8 +109,8 @@ CI 已配置：打 `v*` tag 自动构建并发布（需仓库 `NPM_TOKEN` secret
 
 ```bash
 npm login                          # 本机登录（一次性）
-git tag v0.3.0                     # 版本号与 package.json 一致
-git push origin v0.3.0             # CI 自动发布
+git tag v0.3.1                     # 版本号与 package.json 一致
+git push origin v0.3.1             # CI 自动发布
 npm view dsh-codex-continue         # 验证
 ```
 
