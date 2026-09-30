@@ -25,13 +25,14 @@ export const name = 'dsh-codex-continue'
 export const inject = [
   'slots',
   'sidebarRightTabs',
+  'sessions',
 ] as const
 
 // DSH 2.0 native right-sidebar extension: a tab type plus a keyed body slot.
 // The official document-preview plugin uses this same public path.
 const TAB_ID = 'dsh-codex-continue'
 const TAB_KIND = 'dsh-codex-continue'
-interface ClientContext {
+interface ClientContext extends TabCtxLike {
   effect(fn: () => void | (() => void), label?: string): void
   sidebarRightTabs: { register(definition: { id: string; kind: string; title: (address: string) => string; priority?: string; guide?: readonly { id: string; order: number; title: () => string; description?: () => string }[] }): () => void }
   slots: {
@@ -52,7 +53,10 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab',
     key: TAB_ID,
-    inject: (sessionId: unknown) => ({ sessionId }),
+    inject: (sessionId: unknown) => ({
+      sessionId: String(sessionId),
+      appendDraft: (text: string) => appendToDraft(ctx, String(sessionId), text),
+    }),
   }, CodexTab)), 'dsh-codex-continue: sidebar tab body')
 }
 
@@ -73,8 +77,8 @@ interface TabCtxLike {
   sessions?: { scope(sessionId: string): SessionScopeLike | undefined }
 }
 interface TabPropsLike {
-  ctx: TabCtxLike
   sessionId: string
+  appendDraft(text: string): boolean
   hooks?: { tabInfo?: () => unknown }
 }
 
@@ -235,7 +239,7 @@ function CodexTab(props: unknown): ReactElement {
     if (!detail) return
     const title = detail.title ?? detail.sessionId
     const text = '继续 Codex 会话《' + title + '》(session ' + detail.sessionId + ')：先 codex resume 看现场，再继续做。'
-    if (appendToDraft(tabProps.ctx, tabProps.sessionId, text)) {
+    if (tabProps.appendDraft(text)) {
       setMsg('已填入下方输入框，回车发送即可。')
     } else {
       navigator.clipboard?.writeText(text).catch(() => {})

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { appendToDraft } from '../src/client/index.tsx'
+import { appendToDraft, apply, inject } from '../src/client/index.tsx'
 
 function fixture(initialDraft = '') {
   const setDraft = vi.fn()
@@ -39,5 +39,26 @@ describe('DSH 2.0 composer injection', () => {
 
     const missing = { sessions: { scope: () => ({ get: () => undefined }) } }
     expect(appendToDraft(missing as any, 'session-2', '继续任务')).toBe(false)
+  })
+
+  it('passes a scoped draft writer to the sidebar slot component', () => {
+    const f = fixture()
+    let slotOptions: any
+    const ctx = {
+      ...f.root,
+      effect: (fn: () => void) => fn(),
+      sidebarRightTabs: { register: vi.fn(() => vi.fn()) },
+      slots: {
+        inject: (_name: string, callback: () => void) => callback(),
+        register: vi.fn((options: any) => { slotOptions = options; return vi.fn() }),
+      },
+    }
+
+    expect(inject).toContain('sessions')
+    apply(ctx as any)
+    const props = slotOptions.inject('session-1')
+    expect(props.sessionId).toBe('session-1')
+    expect(props.appendDraft('继续任务')).toBe(true)
+    expect(f.setDraft).toHaveBeenCalledWith('继续任务')
   })
 })
